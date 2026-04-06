@@ -334,6 +334,12 @@ img {
   box-shadow: 0 0 0 4px rgba(91, 108, 255, 0.08);
 }
 
+.validation-text {
+  margin-top: 14px;
+  color: #b42318;
+  font-size: 14px;
+}
+
 .compact-input {
   margin-top: 8px;
   min-height: 46px;
