@@ -43,9 +43,6 @@ function Text({ x, y, w, text, size = 6.1, bold = false, align = "left", boxed =
   const renderText = boxed ? normalized : (text || "");
   return <div className="pdf-text" style={{ left: `${x}%`, top: `${y}%`, width: w ? `${w}%` : undefined, fontSize: `${boxed ? 6.4 : size}px`, fontWeight: bold ? 700 : 400, textAlign: align, letterSpacing: boxed ? "1.6px" : "0px", fontFamily: boxed ? "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" : undefined, whiteSpace: "nowrap" }}>{renderText}</div>;
 }
-const Tick = ({ x, y }: { x: number; y: number }) => <Text x={x} y={y} text="✓" size={9} bold align="center" />;
-const hasDoc = (data: ClaimData, label: string) => (data.documents || []).includes(label);
-const rowAt = (rows: BillRow[] | undefined, index: number) => rows && rows[index] ? rows[index] : undefined;
 
 function PageFrame({ template, fallbackTemplate, qrValue, children }: { template: string; fallbackTemplate?: string; qrValue: string; children?: React.ReactNode }) {
   const [activeTemplate, setActiveTemplate] = useState(template);
