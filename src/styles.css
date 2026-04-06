@@ -1,3 +1,4 @@
+
 :root {
   --bg: #f5f7fb;
   --panel: #ffffff;
@@ -333,6 +334,47 @@ img {
   box-shadow: 0 0 0 4px rgba(91, 108, 255, 0.08);
 }
 
+.compact-input {
+  margin-top: 8px;
+  min-height: 46px;
+  padding: 12px 14px;
+  font-size: 14px;
+}
+
+.mini-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.bill-editor {
+  margin-top: 28px;
+}
+
+.bill-card {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fbfcfe;
+  margin-bottom: 14px;
+}
+
+.bill-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.bill-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.small-btn {
+  margin-top: 8px;
+}
+
 .checkbox-row {
   display: flex;
   gap: 12px;
@@ -438,13 +480,13 @@ img {
 
 .page-qr {
   position: absolute;
-  top: 12px;
-  right: 14px;
-  width: 72px;
-  height: 72px;
+  top: 10px;
+  right: 12px;
+  width: 66px;
+  height: 66px;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
   border: 1px solid #d7dbe5;
   border-radius: 8px;
 }
@@ -475,7 +517,8 @@ img {
 
   .benefit-grid,
   .review-groups,
-  .choice-grid {
+  .choice-grid,
+  .bill-grid {
     grid-template-columns: 1fr;
   }
 }
