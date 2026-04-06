@@ -14,6 +14,7 @@ export type BillRow = {
 };
 
 export type ClaimData = {
+  wizardStepKey?: string;
   relationship?: string;
   policyholderName?: string;
   patientName?: string;

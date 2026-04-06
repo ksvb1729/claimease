@@ -31,8 +31,13 @@ function deriveAge(dob?: string) {
   return { years: String(Math.max(0, years)), months: String(Math.max(0, months)) };
 }
 
+function normalizeBoxText(value?: string) {
+  return (value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
 function Text({ x, y, w, text, size = 6.1, bold = false, align = "left", boxed = false }: { x: number; y: number; w?: number; text?: string; size?: number; bold?: boolean; align?: "left" | "center" | "right"; boxed?: boolean }) {
-  return <div className="pdf-text" style={{ left: `${x}%`, top: `${y + 0.2}%`, width: w ? `${w}%` : undefined, fontSize: `${size}px`, fontWeight: bold ? 700 : 400, textAlign: align, letterSpacing: boxed ? "1px" : "0px", textTransform: boxed ? "uppercase" : "none" }}>{text || ""}</div>;
+  const renderText = boxed ? normalizeBoxText(text) : (text || "");
+  return <div className="pdf-text" style={{ left: `${x}%`, top: `${y}%`, width: w ? `${w}%` : undefined, fontSize: `${size}px`, fontWeight: bold ? 700 : 400, textAlign: align, letterSpacing: boxed ? "6px" : "0px", fontFamily: boxed ? "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" : undefined }}>{renderText}</div>;
 }
 const Tick = ({ x, y }: { x: number; y: number }) => <Text x={x} y={y} text="✓" size={9} bold align="center" />;
 const hasDoc = (data: ClaimData, label: string) => (data.documents || []).includes(label);

@@ -185,10 +185,17 @@ export default function Wizard({ initialData, onSave, onComplete }: WizardProps)
     },
   );
   const [stepIndex, setStepIndex] = useState(0);
+  const [restoredStep, setRestoredStep] = useState(false);
   const steps = useMemo(() => buildSteps(form), [form]);
   const step = steps[stepIndex];
 
-  useEffect(() => onSave(form), [form, onSave]);
+  useEffect(() => onSave({ ...form, wizardStepKey: step?.key }), [form, step?.key, onSave]);
+  useEffect(() => {
+    if (restoredStep || !initialData?.wizardStepKey || !steps.length) return;
+    const idx = steps.findIndex((s) => s.key === initialData.wizardStepKey);
+    if (idx >= 0) setStepIndex(idx);
+    setRestoredStep(true);
+  }, [initialData?.wizardStepKey, steps, restoredStep]);
   useEffect(() => {
     if (form.relationship === "Myself") {
       setForm((prev) => ({ ...prev, patientName: prev.patientName || prev.policyholderName, sameAddress: true }));
@@ -327,5 +334,9 @@ function BillEditor({ form, setValue }: { form: ClaimData; setValue: (key: keyof
 }
 
 function ReviewBlock({ form, age }: { form: ClaimData; age: { years: string; months: string } }) {
-  return <div className="review-groups"><div className="review-group"><h3>Policyholder</h3><p><strong>Name:</strong> {form.policyholderName || "—"}</p><p><strong>Policy:</strong> {form.policyNumber || "—"}</p></div><div className="review-group"><h3>Patient</h3><p><strong>Name:</strong> {form.patientName || "—"}</p><p><strong>Relationship:</strong> {form.relationship || "—"}</p><p><strong>Age:</strong> {age.years || "0"}y {age.months || "0"}m</p></div><div className="review-group"><h3>Hospital stay</h3><p><strong>Hospital:</strong> {form.hospitalName || "—"}</p><p><strong>Admission:</strong> {form.admissionDate || "—"}</p><p><strong>Discharge:</strong> {form.dischargeDate || "—"}</p></div><div className="review-group"><h3>Bank details</h3><p><strong>Payee:</strong> {form.chequePayableTo || "—"}</p><p><strong>IFSC:</strong> {form.ifsc || "—"}</p></div></div>;
+  const exhaustiveEntries = Object.entries(form)
+    .filter(([key, value]) => key !== "wizardStepKey" && key !== "billRows" && key !== "documents" && value !== undefined && value !== "")
+    .map(([key, value]) => ({ key, value: typeof value === "boolean" ? String(value) : String(value) }));
+
+  return <div className="review-groups"><div className="review-group"><h3>Policyholder</h3><p><strong>Name:</strong> {form.policyholderName || "—"}</p><p><strong>Policy:</strong> {form.policyNumber || "—"}</p></div><div className="review-group"><h3>Patient</h3><p><strong>Name:</strong> {form.patientName || "—"}</p><p><strong>Relationship:</strong> {form.relationship || "—"}</p><p><strong>Age:</strong> {age.years || "0"}y {age.months || "0"}m</p></div><div className="review-group"><h3>Hospital stay</h3><p><strong>Hospital:</strong> {form.hospitalName || "—"}</p><p><strong>Admission:</strong> {form.admissionDate || "—"}</p><p><strong>Discharge:</strong> {form.dischargeDate || "—"}</p></div><div className="review-group"><h3>Bank details</h3><p><strong>Payee:</strong> {form.chequePayableTo || "—"}</p><p><strong>IFSC:</strong> {form.ifsc || "—"}</p></div><div className="review-group"><h3>Exhaustive entered fields</h3><p><strong>Documents selected:</strong> {(form.documents || []).length}</p><p><strong>Bills entered:</strong> {(form.billRows || []).length}</p><div style={{ maxHeight: 220, overflow: "auto", fontSize: 13 }}>{exhaustiveEntries.map((entry) => <p key={entry.key}><strong>{entry.key}:</strong> {entry.value}</p>)}</div></div></div>;
 }
