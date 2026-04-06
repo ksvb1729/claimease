@@ -34,6 +34,9 @@ function deriveAge(dob?: string) {
 function normalizeBoxText(value?: string) {
   return (value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
+const Tick = ({ x, y }: { x: number; y: number }) => <Text x={x} y={y} text="✓" size={9} bold align="center" />;
+const hasDoc = (data: ClaimData, label: string) => (data.documents || []).includes(label);
+const rowAt = (rows: BillRow[] | undefined, index: number) => rows && rows[index] ? rows[index] : undefined;
 
 function Text({ x, y, w, text, size = 6.1, bold = false, align = "left", boxed = false }: { x: number; y: number; w?: number; text?: string; size?: number; bold?: boolean; align?: "left" | "center" | "right"; boxed?: boolean }) {
   const normalized = normalizeBoxText(text);
