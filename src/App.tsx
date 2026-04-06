@@ -14,6 +14,7 @@ export type BillRow = {
 };
 
 export type ClaimData = {
+  wizardStepKey?: string;
   relationship?: string;
   policyholderName?: string;
   patientName?: string;
@@ -23,6 +24,7 @@ export type ClaimData = {
   patientDob?: string;
   gender?: string;
   occupation?: string;
+  occupationOther?: string;
   phone?: string;
   email?: string;
 
@@ -91,9 +93,11 @@ export type ClaimData = {
   bankNameBranch?: string;
   ifsc?: string;
   chequePayableTo?: string;
+  payeeType?: "Primary policyholder" | "Patient" | "Someone else";
   pan?: string;
 
   declarationPlace?: string;
+  declarationDate?: string;
 };
 
 type Page = "landing" | "wizard" | "review";
