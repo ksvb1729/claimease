@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import Wizard from "./components/Wizard";
 import FormRenderer from "./components/FormRenderer";
 import "./styles.css";
@@ -76,8 +76,6 @@ export default function App() {
   const [page, setPage] = useState<Page>("landing");
   const [claimData, setClaimData] = useState<ClaimData | null>(null);
 
-  const canResume = useMemo(() => !!claimData, [claimData]);
-
   const handleExport = () => {
     if (!claimData) return;
     const blob = new Blob([JSON.stringify(claimData, null, 2)], {
@@ -109,6 +107,8 @@ export default function App() {
     window.print();
   };
 
+  const showSaveAction = page !== "landing" && !!claimData;
+
   return (
     <div className="app-shell">
       <header className="topbar no-print">
@@ -116,9 +116,7 @@ export default function App() {
           <div className="brand-mark">C</div>
           <div>
             <div className="brand-title">ClaimEase</div>
-            <div className="brand-subtitle">
-              One clear question at a time
-            </div>
+            <div className="brand-subtitle">IRDAI claim form helper</div>
           </div>
         </div>
 
@@ -128,7 +126,8 @@ export default function App() {
               Home
             </button>
           )}
-          {claimData && (
+
+          {showSaveAction && (
             <button className="ghost-btn" onClick={handleExport}>
               Save and continue later
             </button>
@@ -140,26 +139,26 @@ export default function App() {
         <main className="landing">
           <section className="hero">
             <div className="hero-copy">
-              <div className="eyebrow">IRDAI reimbursement claim helper</div>
-              <h1>Fill a complex claim form without feeling lost.</h1>
+              <div className="eyebrow">IRDAI reimbursement claim form</div>
+              <h1>Fill the official claim form correctly, one question at a time.</h1>
+
               <p className="hero-text">
-                ClaimEase asks one clear question at a time, maps your answers
-                into the official claim form, and keeps your progress only on
-                your device.
+                ClaimEase guides the user through the insured part of the reimbursement claim form,
+                keeps questions simple, and prepares a cleaner print-ready output.
               </p>
 
               <div className="benefit-grid">
                 <div className="benefit-card">
                   <h3>For users</h3>
                   <p>
-                    Easier claim filling, fewer confusing fields, and a guided
-                    flow based on the actual form.
+                    Fewer confusing insurance terms, less back-and-forth with papers,
+                    and a calmer way to fill a complex form.
                   </p>
                 </div>
                 <div className="benefit-card">
-                  <h3>For insurers</h3>
+                  <h3>For insurers / TPAs</h3>
                   <p>
-                    Cleaner structured output and a consistent prefilled Part A.
+                    More structured claimant input and a QR-backed summary on the rendered insured page.
                   </p>
                 </div>
               </div>
@@ -184,7 +183,7 @@ export default function App() {
               </div>
 
               <p className="privacy-line">
-                Privacy-first: nothing is stored on a server.
+                Privacy-first: progress stays on your device unless you export it.
               </p>
             </div>
           </section>
@@ -211,8 +210,7 @@ export default function App() {
               <div className="eyebrow">Review</div>
               <h2>Your claim is ready to preview</h2>
               <p className="muted">
-                Part A is prefilled from your answers. Part B stays blank for
-                the hospital.
+                Part A is prefilled from your answers. Part B remains blank for the hospital.
               </p>
 
               <div className="review-actions">
@@ -223,6 +221,10 @@ export default function App() {
                   Print / Save as PDF
                 </button>
               </div>
+
+              <p className="review-note">
+                For best output, use browser print with portrait orientation and default scale.
+              </p>
             </div>
           </aside>
 
