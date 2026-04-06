@@ -43,9 +43,6 @@ function Text({ x, y, w, text, size = 6.1, bold = false, align = "left", boxed =
   const renderText = boxed ? normalized.split("").join(" ") : (text || "");
   return <div className="pdf-text" style={{ left: `${x}%`, top: `${y}%`, width: w ? `${w}%` : undefined, fontSize: `${size}px`, fontWeight: bold ? 700 : 400, textAlign: align, letterSpacing: boxed ? "0.15px" : "0px", fontFamily: boxed ? "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" : undefined, whiteSpace: boxed ? "pre" : "nowrap" }}>{renderText}</div>;
 }
-const Tick = ({ x, y }: { x: number; y: number }) => <Text x={x} y={y} text="✓" size={9} bold align="center" />;
-const hasDoc = (data: ClaimData, label: string) => (data.documents || []).includes(label);
-const rowAt = (rows: BillRow[] | undefined, index: number) => rows && rows[index] ? rows[index] : undefined;
 
 function PageFrame({ template, qrValue, children }: { template: string; qrValue: string; children?: React.ReactNode }) {
   return <section className="a4-page page-break"><img src={template} alt="IRDAI claim form page" className="form-template" /><div className="page-overlay"><div className="page-qr"><QRCodeSVG value={qrValue} size={58} level="M" includeMargin /></div>{children}</div></section>;
