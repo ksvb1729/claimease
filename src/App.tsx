@@ -1,7 +1,17 @@
+
 import React, { useState } from "react";
 import Wizard from "./components/Wizard";
 import FormRenderer from "./components/FormRenderer";
 import "./styles.css";
+
+export type BillRow = {
+  id: string;
+  billNo: string;
+  date: string;
+  issuedBy: string;
+  towards: string;
+  amount: string;
+};
 
 export type ClaimData = {
   relationship?: string;
@@ -12,10 +22,22 @@ export type ClaimData = {
   policyholderDob?: string;
   patientDob?: string;
   gender?: string;
+  occupation?: string;
   phone?: string;
   email?: string;
 
-  sameAddress?: boolean;
+  currentOtherCover?: string;
+  firstInsuranceStart?: string;
+  currentOtherCompanyName?: string;
+  currentOtherPolicyNo?: string;
+  currentOtherSumInsured?: string;
+  hospitalizedLastFourYears?: string;
+  lastHospitalizationDate?: string;
+  lastHospitalizationDiagnosis?: string;
+  previousOtherCover?: string;
+  previousOtherCompanyName?: string;
+
+  sameAddress?: boolean | "No";
   policyholderAddress1?: string;
   policyholderCity?: string;
   policyholderState?: string;
@@ -46,7 +68,12 @@ export type ClaimData = {
   hadPostExpenses?: string;
   postExpenses?: string;
   hospitalExpenses?: string;
+  healthCheckupCost?: string;
   ambulanceCharges?: string;
+  othersClaimAmount?: string;
+  othersClaimCode?: string;
+  preHospitalizationDays?: string;
+  postHospitalizationDays?: string;
   hadDomiciliary?: string;
 
   hasCashBenefits?: string;
@@ -58,6 +85,7 @@ export type ClaimData = {
   otherBenefit?: string;
 
   documents?: string[];
+  billRows?: BillRow[];
 
   bankAccountNumber?: string;
   bankNameBranch?: string;
@@ -143,22 +171,24 @@ export default function App() {
               <h1>Fill the official claim form correctly, one question at a time.</h1>
 
               <p className="hero-text">
-                ClaimEase guides the user through the insured part of the reimbursement claim form,
-                keeps questions simple, and prepares a cleaner print-ready output.
+                ClaimEase guides the insured part of the reimbursement claim form in
+                plain language, helps users keep the right papers ready, and prepares a
+                cleaner print-ready Part A.
               </p>
 
               <div className="benefit-grid">
                 <div className="benefit-card">
                   <h3>For users</h3>
                   <p>
-                    Fewer confusing insurance terms, less back-and-forth with papers,
-                    and a calmer way to fill a complex form.
+                    Fewer confusing insurance terms, less guessing, and a calmer
+                    way to complete a complex claim form.
                   </p>
                 </div>
                 <div className="benefit-card">
                   <h3>For insurers / TPAs</h3>
                   <p>
-                    More structured claimant input and a QR-backed summary on the rendered insured page.
+                    More structured claimant input and a QR-backed page summary
+                    on the insured section.
                   </p>
                 </div>
               </div>
@@ -223,7 +253,7 @@ export default function App() {
               </div>
 
               <p className="review-note">
-                For best output, use browser print with portrait orientation and default scale.
+                For best output, use portrait orientation and default scale.
               </p>
             </div>
           </aside>
