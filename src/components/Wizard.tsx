@@ -191,11 +191,20 @@ export default function Wizard({ initialData, onSave, onComplete }: WizardProps)
 
   useEffect(() => onSave({ ...form, wizardStepKey: step?.key }), [form, step?.key, onSave]);
   useEffect(() => {
-    if (restoredStep || !initialData?.wizardStepKey || !steps.length) return;
-    const idx = steps.findIndex((s) => s.key === initialData.wizardStepKey);
-    if (idx >= 0) setStepIndex(idx);
+    if (restoredStep || !steps.length) return;
+    if (initialData?.wizardStepKey) {
+      const idx = steps.findIndex((s) => s.key === initialData.wizardStepKey);
+      if (idx >= 0) {
+        setStepIndex(idx);
+        setRestoredStep(true);
+        return;
+      }
+    }
+    const firstIncomplete = steps.findIndex((s) => !isStepComplete(s.key, initialData || form));
+    if (firstIncomplete >= 0) setStepIndex(firstIncomplete);
+    else setStepIndex(Math.max(0, steps.length - 2));
     setRestoredStep(true);
-  }, [initialData?.wizardStepKey, steps, restoredStep]);
+  }, [initialData?.wizardStepKey, steps, restoredStep, initialData, form]);
   useEffect(() => {
     if (form.relationship === "Myself") {
       setForm((prev) => ({ ...prev, patientName: prev.patientName || prev.policyholderName, sameAddress: true }));
@@ -312,6 +321,16 @@ function getStepValidation(key: string, form: ClaimData) {
   return "";
 }
 
+function isStepComplete(key: string, form: ClaimData) {
+  const autoComplete = new Set(["documents", "policyholderContext", "patientContext", "hospitalContext", "review"]);
+  if (autoComplete.has(key)) return true;
+  if (["relationship","gender","occupation","sameAddress","hospitalizationReason","injuryCause","payeeType","currentOtherCover","hospitalizedLastFourYears","previousOtherCover","medicoLegal","reportedToPolice","firAttached","hadPreExpenses","hadPostExpenses","hadDomiciliary","hasCashBenefits"].includes(key)) {
+    return Boolean((form as any)[key]);
+  }
+  if (["documentsReview", "billRows"].includes(key)) return true;
+  return Boolean(String((form as any)[key] || "").trim());
+}
+
 function ChoiceGrid({ options, value, onChange }: { options: string[]; value: string; onChange: (value: string) => void }) {
   return <div className="choice-grid">{options.map((option) => <button key={option} type="button" className={`choice-pill ${value === option ? "selected" : ""}`} onClick={() => onChange(option)}>{option}</button>)}</div>;
 }
@@ -334,9 +353,5 @@ function BillEditor({ form, setValue }: { form: ClaimData; setValue: (key: keyof
 }
 
 function ReviewBlock({ form, age }: { form: ClaimData; age: { years: string; months: string } }) {
-  const exhaustiveEntries = Object.entries(form)
-    .filter(([key, value]) => key !== "wizardStepKey" && key !== "billRows" && key !== "documents" && value !== undefined && value !== "")
-    .map(([key, value]) => ({ key, value: typeof value === "boolean" ? String(value) : String(value) }));
-
-  return <div className="review-groups"><div className="review-group"><h3>Policyholder</h3><p><strong>Name:</strong> {form.policyholderName || "—"}</p><p><strong>Policy:</strong> {form.policyNumber || "—"}</p></div><div className="review-group"><h3>Patient</h3><p><strong>Name:</strong> {form.patientName || "—"}</p><p><strong>Relationship:</strong> {form.relationship || "—"}</p><p><strong>Age:</strong> {age.years || "0"}y {age.months || "0"}m</p></div><div className="review-group"><h3>Hospital stay</h3><p><strong>Hospital:</strong> {form.hospitalName || "—"}</p><p><strong>Admission:</strong> {form.admissionDate || "—"}</p><p><strong>Discharge:</strong> {form.dischargeDate || "—"}</p></div><div className="review-group"><h3>Bank details</h3><p><strong>Payee:</strong> {form.chequePayableTo || "—"}</p><p><strong>IFSC:</strong> {form.ifsc || "—"}</p></div><div className="review-group"><h3>Exhaustive entered fields</h3><p><strong>Documents selected:</strong> {(form.documents || []).length}</p><p><strong>Bills entered:</strong> {(form.billRows || []).length}</p><div style={{ maxHeight: 220, overflow: "auto", fontSize: 13 }}>{exhaustiveEntries.map((entry) => <p key={entry.key}><strong>{entry.key}:</strong> {entry.value}</p>)}</div></div></div>;
+  return <div className="review-groups"><div className="review-group"><h3>Policyholder</h3><p><strong>Name:</strong> {form.policyholderName || "—"}</p><p><strong>Policy:</strong> {form.policyNumber || "—"}</p><p><strong>Contact:</strong> {form.phone || "—"}</p></div><div className="review-group"><h3>Patient</h3><p><strong>Name:</strong> {form.patientName || "—"}</p><p><strong>Relationship:</strong> {form.relationship || "—"}</p><p><strong>Age:</strong> {age.years || "0"}y {age.months || "0"}m</p></div><div className="review-group"><h3>Hospital stay</h3><p><strong>Hospital:</strong> {form.hospitalName || "—"}</p><p><strong>Admission:</strong> {form.admissionDate || "—"} {form.admissionTime || ""}</p><p><strong>Discharge:</strong> {form.dischargeDate || "—"} {form.dischargeTime || ""}</p><p><strong>Reason:</strong> {form.hospitalizationReason || "—"}</p></div><div className="review-group"><h3>Claim summary</h3><p><strong>Pre / Hospital / Post:</strong> ₹{form.preExpenses || "0"} / ₹{form.hospitalExpenses || "0"} / ₹{form.postExpenses || "0"}</p><p><strong>Docs selected:</strong> {(form.documents || []).length}</p><p><strong>Bills entered:</strong> {(form.billRows || []).length}</p></div><div className="review-group"><h3>Bank details</h3><p><strong>Payee:</strong> {form.chequePayableTo || "—"}</p><p><strong>Account:</strong> {form.bankAccountNumber || "—"}</p><p><strong>IFSC:</strong> {form.ifsc || "—"}</p></div></div>;
 }
