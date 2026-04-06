@@ -30,6 +30,9 @@ function deriveAge(dob?: string) {
   if (months < 0) { years -= 1; months += 12; }
   return { years: String(Math.max(0, years)), months: String(Math.max(0, months)) };
 }
+const Tick = ({ x, y }: { x: number; y: number }) => <Text x={x} y={y} text="✓" size={9} bold align="center" />;
+const hasDoc = (data: ClaimData, label: string) => (data.documents || []).includes(label);
+const rowAt = (rows: BillRow[] | undefined, index: number) => rows && rows[index] ? rows[index] : undefined;
 
 function normalizeBoxText(value?: string) {
   return (value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
