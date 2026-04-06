@@ -31,6 +31,11 @@ label {
   font: inherit;
 }
 
+img {
+  max-width: 100%;
+  display: block;
+}
+
 .app-shell {
   min-height: 100vh;
 }
@@ -42,7 +47,7 @@ label {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 28px;
+  padding: 18px 24px;
   background: rgba(245, 247, 251, 0.88);
   backdrop-filter: blur(10px);
 }
@@ -70,7 +75,7 @@ label {
 }
 
 .brand-subtitle {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -81,7 +86,7 @@ label {
 }
 
 .landing {
-  padding: 32px 20px 80px;
+  padding: 28px 20px 72px;
 }
 
 .hero {
@@ -92,7 +97,7 @@ label {
 .hero-copy {
   background: var(--panel);
   border-radius: 32px;
-  padding: 48px;
+  padding: 44px;
   box-shadow: var(--shadow);
 }
 
@@ -107,14 +112,14 @@ label {
 
 .hero h1 {
   margin: 0 0 14px;
-  max-width: 720px;
-  font-size: clamp(34px, 5vw, 58px);
-  line-height: 1.02;
+  max-width: 780px;
+  font-size: clamp(34px, 5vw, 56px);
+  line-height: 1.03;
   letter-spacing: -0.03em;
 }
 
 .hero-text {
-  max-width: 720px;
+  max-width: 760px;
   font-size: 18px;
   line-height: 1.7;
   color: var(--muted);
@@ -142,7 +147,7 @@ label {
 .benefit-card p {
   margin: 0;
   color: var(--muted);
-  line-height: 1.6;
+  line-height: 1.65;
 }
 
 .cta-row {
@@ -181,7 +186,8 @@ label {
 }
 
 .privacy-line,
-.muted {
+.muted,
+.review-note {
   color: var(--muted);
   line-height: 1.6;
 }
@@ -189,6 +195,11 @@ label {
 .privacy-line {
   margin-top: 16px;
   font-size: 14px;
+}
+
+.review-note {
+  margin-top: 16px;
+  font-size: 13px;
 }
 
 .main-stage {
@@ -408,40 +419,45 @@ label {
   background: white;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
   overflow: hidden;
+  isolation: isolate;
 }
 
-.page-bg {
+.form-template {
   position: absolute;
   inset: 0;
-  background-repeat: no-repeat;
-  background-size: cover;
-  background-position: center;
-}
-
-.page-a {
-  background-image:
-    linear-gradient(to bottom, rgba(255,255,255,0.92), rgba(255,255,255,0.92)),
-    url("/Claim_Form_Page_1.png");
-}
-
-.page-b {
-  background-image:
-    linear-gradient(to bottom, rgba(255,255,255,0.97), rgba(255,255,255,0.97)),
-    url("/Claim_Form_Page_3.png");
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .page-overlay {
   position: absolute;
   inset: 0;
+  z-index: 2;
+}
+
+.page-qr {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #d7dbe5;
+  border-radius: 8px;
 }
 
 .pdf-text {
   position: absolute;
+  z-index: 3;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: #111827;
+  color: #0f172a;
   line-height: 1;
+  letter-spacing: 0;
 }
 
 .page-break {
@@ -486,6 +502,8 @@ label {
   body,
   #root {
     background: white;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .no-print {
@@ -495,6 +513,12 @@ label {
   .app-shell,
   .preview-stage,
   .form-preview-wrap {
+    padding: 0;
+    margin: 0;
+  }
+
+  .review-layout {
+    display: block;
     padding: 0;
     margin: 0;
   }
