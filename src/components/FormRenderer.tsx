@@ -6,6 +6,8 @@ import claimFormPartB from "../assets/claim-form-part-b.png";
 
 type Props = { data: ClaimData };
 
+type QrCompactData = Record<string, string | boolean | string[] | Array<Record<string, string>>>;
+
 function formatDate(date?: string) {
   if (!date) return "";
   const d = new Date(date);
@@ -38,6 +40,109 @@ const Tick = ({ x, y }: { x: number; y: number }) => <Text x={x} y={y} text="✓
 const hasDoc = (data: ClaimData, label: string) => (data.documents || []).includes(label);
 const rowAt = (rows: BillRow[] | undefined, index: number) => rows && rows[index] ? rows[index] : undefined;
 
+function compactClaimData(data: ClaimData): QrCompactData {
+  const entries: Array<[string, unknown]> = [
+    ["ws", data.wizardStepKey],
+    ["rel", data.relationship],
+    ["phn", data.policyholderName],
+    ["ptn", data.patientName],
+    ["pol", data.policyNumber],
+    ["tpa", data.tpaId],
+    ["phd", data.policyholderDob],
+    ["ptd", data.patientDob],
+    ["gen", data.gender],
+    ["occ", data.occupation],
+    ["oco", data.occupationOther],
+    ["ph", data.phone],
+    ["em", data.email],
+    ["coc", data.currentOtherCover],
+    ["fis", data.firstInsuranceStart],
+    ["ccn", data.currentOtherCompanyName],
+    ["cpn", data.currentOtherPolicyNo],
+    ["csi", data.currentOtherSumInsured],
+    ["h4y", data.hospitalizedLastFourYears],
+    ["lhd", data.lastHospitalizationDate],
+    ["lhn", data.lastHospitalizationDiagnosis],
+    ["poc", data.previousOtherCover],
+    ["pon", data.previousOtherCompanyName],
+    ["sad", data.sameAddress],
+    ["pa1", data.policyholderAddress1],
+    ["pcy", data.policyholderCity],
+    ["pst", data.policyholderState],
+    ["ppn", data.policyholderPin],
+    ["aa1", data.patientAddress1],
+    ["acy", data.patientCity],
+    ["ast", data.patientState],
+    ["apn", data.patientPin],
+    ["hrs", data.hospitalizationReason],
+    ["did", data.diseaseOrInjuryDate],
+    ["adt", data.admissionDate],
+    ["atm", data.admissionTime],
+    ["ddt", data.dischargeDate],
+    ["dtm", data.dischargeTime],
+    ["hos", data.hospitalName],
+    ["rmc", data.roomCategory],
+    ["som", data.systemOfMedicine],
+    ["inc", data.injuryCause],
+    ["mll", data.medicoLegal],
+    ["rtp", data.reportedToPolice],
+    ["fir", data.firAttached],
+    ["hpe", data.hadPreExpenses],
+    ["pre", data.preExpenses],
+    ["hpo", data.hadPostExpenses],
+    ["pos", data.postExpenses],
+    ["hex", data.hospitalExpenses],
+    ["hcu", data.healthCheckupCost],
+    ["amb", data.ambulanceCharges],
+    ["oca", data.othersClaimAmount],
+    ["occd", data.othersClaimCode],
+    ["phdys", data.preHospitalizationDays],
+    ["podys", data.postHospitalizationDays],
+    ["dom", data.hadDomiciliary],
+    ["hcb", data.hasCashBenefits],
+    ["hdc", data.hospitalDailyCash],
+    ["srg", data.surgicalCash],
+    ["cil", data.criticalIllnessBenefit],
+    ["cnv", data.convalescence],
+    ["pps", data.prePostLumpSum],
+    ["obe", data.otherBenefit],
+    ["ban", data.bankAccountNumber],
+    ["bnb", data.bankNameBranch],
+    ["ifs", data.ifsc],
+    ["cpy", data.chequePayableTo],
+    ["pyt", data.payeeType],
+    ["pan", data.pan],
+    ["dpl", data.declarationPlace],
+    ["dd", data.declarationDate],
+  ];
+
+  const compact = Object.fromEntries(
+    entries.filter(([, value]) => value !== undefined && value !== null && value !== ""),
+  ) as QrCompactData;
+
+  if (data.documents?.length) compact.docs = data.documents.filter(Boolean);
+  if (data.billRows?.length) {
+    compact.bills = data.billRows.map((row) => ({
+      i: row.id || "",
+      n: row.billNo || "",
+      d: row.date || "",
+      b: row.issuedBy || "",
+      t: row.towards || "",
+      a: row.amount || "",
+    }));
+  }
+
+  return compact;
+}
+
+function buildQrPayload(pageId: string, data: ClaimData) {
+  return JSON.stringify({
+    v: 4,
+    page: pageId,
+    data: compactClaimData(data),
+  });
+}
+
 function Text({ x, y, w, text, size = 6.1, bold = false, align = "left", boxed = false }: { x: number; y: number; w?: number; text?: string; size?: number; bold?: boolean; align?: "left" | "center" | "right"; boxed?: boolean }) {
   const normalized = normalizeBoxText(text);
   const renderText = boxed ? normalized : (text || "");
@@ -48,13 +153,12 @@ function PageFrame({ template, fallbackTemplate, qrValue, children }: { template
   const [activeTemplate, setActiveTemplate] = useState(template);
   return <section className="a4-page page-break"><img src={activeTemplate} alt="IRDAI claim form page" className="form-template" onError={() => {
     if (fallbackTemplate && activeTemplate !== fallbackTemplate) setActiveTemplate(fallbackTemplate);
-  }} /><div className="page-overlay"><div className="page-qr"><QRCodeSVG value={qrValue} size={58} level="M" includeMargin /></div>{children}</div></section>;
+  }} /><div className="page-overlay"><div className="page-qr"><QRCodeSVG value={qrValue} size={86} level="L" includeMargin /></div>{children}</div></section>;
 }
 
 export default function FormRenderer({ data }: Props) {
   const age = deriveAge(data.patientDob);
   const rows = (data.billRows || []).slice(0, 10);
-  const qrValue = JSON.stringify({ v: 3, policyNo: data.policyNumber || "", patient: data.patientName || "", admission: data.admissionDate || "", discharge: data.dischargeDate || "", hospital: data.hospitalName || "" });
 
   // If you add exact legend images at the paths below, page 2/4 will use them.
   const pages = [
@@ -67,7 +171,7 @@ export default function FormRenderer({ data }: Props) {
   return (
     <div className="form-preview-wrap">
       {pages.map((page) => (
-        <PageFrame key={page.id} template={page.template} fallbackTemplate={page.fallbackTemplate} qrValue={`${qrValue}|${page.id}`}>
+        <PageFrame key={page.id} template={page.template} fallbackTemplate={page.fallbackTemplate} qrValue={buildQrPayload(page.id, data)}>
           {page.withOverlay ? (
             <>
         <Text x={8.4} y={7.9} w={22} text={data.policyNumber} boxed /><Text x={8.4} y={11.0} w={25} text={data.tpaId} boxed />
