@@ -211,7 +211,7 @@ export default function Wizard({ initialData, onSave, onComplete }: WizardProps)
   );
 }
 
-const AUTO_NEXT = new Set(["relationship","gender","occupation","sameAddress","hospitalizationReason","medicoLegal","reportedToPolice","firAttached","hadPreExpenses","hadPostExpenses","hadDomiciliary","currentOtherCover","hospitalizedLastFourYears","previousOtherCover"]);
+const AUTO_NEXT = new Set(["relationship","gender","occupation","sameAddress","hospitalizationReason","medicoLegal","reportedToPolice","firAttached","hadPreExpenses","hadPostExpenses","hadDomiciliary","currentOtherCover","hospitalizedLastFourYears","previousOtherCover","policyholderContext","patientContext","hospitalContext"]);
 
 function renderStep(step: StepDef, form: ClaimData, setValue: (key: keyof ClaimData, value: any) => void) {
   if (["policyholderContext", "patientContext", "hospitalContext"].includes(step.key)) {
