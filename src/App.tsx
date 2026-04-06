@@ -1,221 +1,308 @@
-import { useMemo, useState } from 'react';
-import { Wizard } from './components/Wizard';
-import { FormRenderer } from './components/FormRenderer';
-import { initialDraft } from './data/initialDraft';
-import { exportDraftJson, importDraftJson } from './lib/export';
-import { validateDraft } from './lib/claimEngine';
-import { ClaimDraft } from './schema/types';
+import { useRef, useState } from 'react';
+import Wizard from './components/Wizard';
+import FormRenderer from './components/FormRenderer';
+import './styles.css';
 
-type ViewMode = 'landing' | 'wizard';
+export type YesNo = 'yes' | 'no' | '';
 
-const benefits = [
-  {
-    title: 'For users',
-    body: 'A calm helper asks only what matters, in plain language, so the reimbursement form feels manageable.',
+export type ClaimDraft = {
+  meta: {
+    schemaVersion: string;
+    lastUpdatedAt: string;
+  };
+  primaryInsured: {
+    fullName: string;
+    policyNumber: string;
+    certificateNumber: string;
+    companyTpaId: string;
+    address: string;
+    city: string;
+    state: string;
+    pinCode: string;
+    phone: string;
+    email: string;
+  };
+  insuranceHistory: {
+    coveredByOtherPolicy: YesNo;
+    firstInsuranceStartDate: string;
+    otherInsurerName: string;
+    otherPolicyNumber: string;
+    otherSumInsured: string;
+    hospitalizedLast4Years: YesNo;
+    lastHospitalizationMonthYear: string;
+    lastHospitalizationDiagnosis: string;
+    previouslyCovered: YesNo;
+    previousInsurerName: string;
+  };
+  patient: {
+    fullName: string;
+    gender: 'male' | 'female' | '';
+    dateOfBirth: string;
+    relationship: string;
+    occupation: string;
+    addressSameAsPrimary: boolean;
+    address: string;
+    city: string;
+    state: string;
+    pinCode: string;
+    phone: string;
+    email: string;
+  };
+  hospitalization: {
+    hospitalName: string;
+    roomCategory: string;
+    hospitalizationDueTo: 'injury' | 'illness' | 'maternity' | '';
+    eventDate: string;
+    admissionDate: string;
+    admissionTime: string;
+    dischargeDate: string;
+    dischargeTime: string;
+    injuryCause: string;
+    medicoLegal: YesNo;
+    policeReported: YesNo;
+    firAttached: YesNo;
+    systemOfMedicine: string;
+    domiciliaryClaim: YesNo;
+  };
+  claim: {
+    preHospitalization: string;
+    hospitalization: string;
+    postHospitalization: string;
+    healthCheckup: string;
+    ambulance: string;
+    otherExpenseCode: string;
+    otherExpenseAmount: string;
+    preHospitalizationDays: string;
+    postHospitalizationDays: string;
+    hospitalDailyCash: string;
+    surgicalCash: string;
+    criticalIllness: string;
+    convalescence: string;
+    prePostLumpSum: string;
+    otherBenefit: string;
+    claimDocuments: string[];
+    bills: Array<{
+      billNo: string;
+      date: string;
+      issuedBy: string;
+      towards: string;
+      amount: string;
+    }>;
+  };
+  bank: {
+    pan: string;
+    accountNumber: string;
+    bankName: string;
+    branch: string;
+    payeeName: string;
+    ifsc: string;
+  };
+  declaration: {
+    place: string;
+    date: string;
+  };
+};
+
+export const EMPTY_DRAFT: ClaimDraft = {
+  meta: { schemaVersion: '1.1.0', lastUpdatedAt: new Date().toISOString() },
+  primaryInsured: {
+    fullName: '',
+    policyNumber: '',
+    certificateNumber: '',
+    companyTpaId: '',
+    address: '',
+    city: '',
+    state: '',
+    pinCode: '',
+    phone: '',
+    email: '',
   },
-  {
-    title: 'For insurers',
-    body: 'Part A is rendered into the official layout with page-level QR data for faster machine readability.',
+  insuranceHistory: {
+    coveredByOtherPolicy: '',
+    firstInsuranceStartDate: '',
+    otherInsurerName: '',
+    otherPolicyNumber: '',
+    otherSumInsured: '',
+    hospitalizedLast4Years: '',
+    lastHospitalizationMonthYear: '',
+    lastHospitalizationDiagnosis: '',
+    previouslyCovered: '',
+    previousInsurerName: '',
   },
-  {
-    title: 'For privacy',
-    body: 'No backend, no database, no server-side save. Progress stays on the device unless the user exports JSON.',
+  patient: {
+    fullName: '',
+    gender: '',
+    dateOfBirth: '',
+    relationship: '',
+    occupation: '',
+    addressSameAsPrimary: true,
+    address: '',
+    city: '',
+    state: '',
+    pinCode: '',
+    phone: '',
+    email: '',
   },
-];
+  hospitalization: {
+    hospitalName: '',
+    roomCategory: '',
+    hospitalizationDueTo: '',
+    eventDate: '',
+    admissionDate: '',
+    admissionTime: '',
+    dischargeDate: '',
+    dischargeTime: '',
+    injuryCause: '',
+    medicoLegal: '',
+    policeReported: '',
+    firAttached: '',
+    systemOfMedicine: '',
+    domiciliaryClaim: '',
+  },
+  claim: {
+    preHospitalization: '',
+    hospitalization: '',
+    postHospitalization: '',
+    healthCheckup: '',
+    ambulance: '',
+    otherExpenseCode: '',
+    otherExpenseAmount: '',
+    preHospitalizationDays: '',
+    postHospitalizationDays: '',
+    hospitalDailyCash: '',
+    surgicalCash: '',
+    criticalIllness: '',
+    convalescence: '',
+    prePostLumpSum: '',
+    otherBenefit: '',
+    claimDocuments: [],
+    bills: [{ billNo: '', date: '', issuedBy: '', towards: 'Hospital Main Bill', amount: '' }],
+  },
+  bank: {
+    pan: '',
+    accountNumber: '',
+    bankName: '',
+    branch: '',
+    payeeName: '',
+    ifsc: '',
+  },
+  declaration: {
+    place: '',
+    date: '',
+  },
+};
 
-const checklist = [
-  'Insurance policy or health card',
-  'Hospital discharge summary',
-  'Main bill and supporting bills',
-  'Bank details and IFSC',
-  'PAN and patient ID proof',
-];
+function App() {
+  const [screen, setScreen] = useState<'landing' | 'wizard' | 'review'>('landing');
+  const [draft, setDraft] = useState<ClaimDraft>(EMPTY_DRAFT);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-export default function App() {
-  const [draft, setDraft] = useState<ClaimDraft>(initialDraft);
-  const [stepIndex, setStepIndex] = useState(0);
-  const [importError, setImportError] = useState('');
-  const [viewMode, setViewMode] = useState<ViewMode>('landing');
+  const exportJson = () => {
+    const payload = {
+      ...draft,
+      meta: {
+        ...draft.meta,
+        lastUpdatedAt: new Date().toISOString(),
+      },
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `claimease-progress-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
-  const issues = useMemo(() => validateDraft(draft), [draft]);
+  const onImportClick = () => fileInputRef.current?.click();
 
-  async function handleImport(file: File | null) {
+  const onImportFile: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    const file = e.target.files?.[0];
     if (!file) return;
-    try {
-      const parsed = await importDraftJson(file);
-      setDraft(parsed);
-      setImportError('');
-      setViewMode('wizard');
-    } catch {
-      setImportError('Could not import this JSON file. Check schema and try again.');
-    }
-  }
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result));
+        setDraft({ ...EMPTY_DRAFT, ...parsed, meta: { ...(parsed.meta || EMPTY_DRAFT.meta), lastUpdatedAt: new Date().toISOString() } });
+        setScreen('wizard');
+      } catch {
+        alert('That file could not be imported. Please choose a ClaimEase JSON export.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   return (
-    <div className="app-shell premium-shell">
-      <header className="topbar">
-        <button className="brand-lockup" onClick={() => setViewMode('landing')}>
-          <span className="brand-mark">CE</span>
-          <span>
-            <strong>ClaimEase</strong>
-            <small>IRDAI reimbursement helper</small>
-          </span>
-        </button>
+    <div className="app-shell">
+      <input ref={fileInputRef} type="file" accept="application/json" onChange={onImportFile} hidden />
 
-        <div className="topbar-actions">
-          <label className="ghost-btn file-btn compact-btn">
-            Import JSON
-            <input type="file" accept="application/json" onChange={(event) => void handleImport(event.target.files?.[0] ?? null)} />
-          </label>
-          <button className="ghost-btn compact-btn" onClick={() => exportDraftJson(draft)}>Export JSON</button>
-          <button className="primary-btn compact-btn" onClick={() => setViewMode('wizard')}>
-            {viewMode === 'landing' ? 'Start claim' : 'Continue claim'}
-          </button>
-        </div>
-      </header>
-
-      {importError && <div className="error-banner">{importError}</div>}
-
-      {viewMode === 'landing' ? (
-        <main className="landing-layout">
-          <section className="landing-hero card-surface">
-            <div className="hero-copy">
-              <p className="eyebrow">Reimbursement made calmer</p>
-              <h1>Fill a complex IRDAI health claim form without feeling lost.</h1>
-              <p className="hero-summary">
-                ClaimEase acts like a guided helper. It asks in simple language, maps answers into the official insurer format,
-                and keeps everything client-side only.
-              </p>
-
-              <div className="hero-badges">
-                <span>One step at a time</span>
-                <span>No backend storage</span>
-                <span>Official form output</span>
-                <span>QR on Part A</span>
-              </div>
-
-              <div className="hero-actions-row">
-                <button className="primary-btn" onClick={() => setViewMode('wizard')}>Start your claim</button>
-                <button className="ghost-btn" onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}>
-                  See output preview
-                </button>
-              </div>
+      {screen === 'landing' && (
+        <main className="landing-shell">
+          <header className="topbar">
+            <div className="brand">ClaimEase</div>
+            <div className="topbar-actions">
+              <button className="ghost-btn" onClick={onImportClick}>Import JSON</button>
             </div>
+          </header>
 
-            <div className="hero-helper-card">
-              <div className="helper-avatar">CB</div>
-              <div>
-                <p className="helper-label">Claim helper</p>
-                <h3>I ask simple questions so you do not have to decode the form.</h3>
-                <ul className="clean-list soft-list">
-                  <li>Guides what to keep ready before starting</li>
-                  <li>Catches basic mistakes like date mismatches</li>
-                  <li>Reduces overwhelm by breaking the claim into clear steps</li>
-                </ul>
-              </div>
+          <section className="hero-card">
+            <div className="eyebrow">Reimbursement claims, made calmer</div>
+            <h1>Fill the IRDAI claim form one clear question at a time.</h1>
+            <p className="hero-copy">
+              ClaimEase behaves like a helper, not a bulky form. It guides the user in plain language,
+              reduces avoidable errors, and prepares a cleaner Part A for print or download.
+            </p>
+            <div className="cta-row">
+              <button className="primary-btn" onClick={() => setScreen('wizard')}>Start claim</button>
+              <button className="ghost-btn" onClick={onImportClick}>Resume from export</button>
             </div>
-          </section>
-
-          <section className="benefits-grid">
-            {benefits.map((item) => (
-              <article className="card-surface info-card" key={item.title}>
-                <p className="card-kicker">Benefit</p>
-                <h3>{item.title}</h3>
-                <p>{item.body}</p>
+            <div className="benefit-grid">
+              <article>
+                <h3>For users</h3>
+                <p>Less overwhelm, higher completion, and clearer guidance on what each field means.</p>
               </article>
-            ))}
-          </section>
-
-          <section className="landing-split">
-            <article className="card-surface">
-              <div className="section-head">
-                <div>
-                  <p className="eyebrow">Before starting</p>
-                  <h2>Keep these handy</h2>
-                </div>
-                <span className="time-pill">15–20 min</span>
-              </div>
-              <ul className="clean-list checklist-grid">
-                {checklist.map((item) => <li key={item}>{item}</li>)}
-              </ul>
-            </article>
-
-            <article className="card-surface">
-              <div className="section-head">
-                <div>
-                  <p className="eyebrow">How it works</p>
-                  <h2>Simple in front. Official in back.</h2>
-                </div>
-              </div>
-              <div className="mini-flow">
-                <div><strong>1</strong><span>Answer guided questions</span></div>
-                <div><strong>2</strong><span>Review mistakes early</span></div>
-                <div><strong>3</strong><span>Generate submission-ready Part A</span></div>
-                <div><strong>4</strong><span>Keep Part B blank for hospital completion</span></div>
-              </div>
-            </article>
-          </section>
-
-          <section className="card-surface preview-section">
-            <div className="section-head section-head-tight">
-              <div>
-                <p className="eyebrow">Preview</p>
-                <h2>Official form rendering</h2>
-                <p className="muted-text">
-                  Part A is prefilled and includes QR. Part B remains blank for the hospital, exactly as required for this MVP.
-                </p>
-              </div>
+              <article>
+                <h3>For insurers</h3>
+                <p>Cleaner, more structured input for Part A. Part B remains blank for hospital completion.</p>
+              </article>
+              <article>
+                <h3>Privacy-first</h3>
+                <p>No backend storage. Progress stays in the browser unless the user exports JSON.</p>
+              </article>
             </div>
-            <FormRenderer draft={draft} compact />
           </section>
         </main>
-      ) : (
-        <main className="workspace-layout">
-          <section className="workspace-main">
-            <Wizard
-              draft={draft}
-              stepIndex={stepIndex}
-              onStepChange={setStepIndex}
-              onDraftChange={(updater) => setDraft((current) => updater(current))}
-            />
-          </section>
+      )}
 
-          <aside className="workspace-side">
-            <div className="panel card-surface">
-              <div className="panel-head">
-                <h3>Quick checks</h3>
-                <span>{issues.length} issue(s)</span>
-              </div>
-              {issues.length === 0 ? (
-                <div className="ok-box">Looks clean so far.</div>
-              ) : (
-                <ul className="clean-list compact">
-                  {issues.map((issue) => <li key={issue}>{issue}</li>)}
-                </ul>
-              )}
-            </div>
+      {screen === 'wizard' && (
+        <Wizard
+          draft={draft}
+          onChange={(next) => setDraft({ ...next, meta: { ...next.meta, lastUpdatedAt: new Date().toISOString() } })}
+          onBackToHome={() => setScreen('landing')}
+          onExport={exportJson}
+          onReview={() => setScreen('review')}
+        />
+      )}
 
-            <div className="panel card-surface helper-panel">
-              <p className="eyebrow">MVP behavior</p>
-              <h3>What gets generated</h3>
-              <ul className="clean-list compact">
-                <li>Part A is prefilled from the wizard.</li>
-                <li>Part A includes a QR payload for machine readability.</li>
-                <li>Part B stays blank because the hospital must complete it.</li>
-                <li>Use Export JSON to save and resume later.</li>
-              </ul>
+      {screen === 'review' && (
+        <main className="review-shell">
+          <header className="topbar compact">
+            <div>
+              <div className="brand">ClaimEase</div>
+              <div className="subtle">Review your Part A output before print or download.</div>
             </div>
-
-            <div className="panel card-surface">
-              <div className="panel-head">
-                <h3>Rendered output</h3>
-                <button className="ghost-btn compact-btn" onClick={() => window.print()}>Print</button>
-              </div>
-              <FormRenderer draft={draft} />
+            <div className="topbar-actions">
+              <button className="ghost-btn" onClick={() => setScreen('wizard')}>Back to wizard</button>
+              <button className="ghost-btn" onClick={exportJson}>Export JSON</button>
+              <button className="primary-btn" onClick={() => window.print()}>Print</button>
             </div>
-          </aside>
+          </header>
+          <FormRenderer draft={draft} />
         </main>
       )}
     </div>
   );
 }
+
+export default App;
