@@ -30,14 +30,18 @@ function deriveAge(dob?: string) {
   if (months < 0) { years -= 1; months += 12; }
   return { years: String(Math.max(0, years)), months: String(Math.max(0, months)) };
 }
+const Tick = ({ x, y }: { x: number; y: number }) => <Text x={x} y={y} text="✓" size={9} bold align="center" />;
+const hasDoc = (data: ClaimData, label: string) => (data.documents || []).includes(label);
+const rowAt = (rows: BillRow[] | undefined, index: number) => rows && rows[index] ? rows[index] : undefined;
 
 function normalizeBoxText(value?: string) {
   return (value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
 function Text({ x, y, w, text, size = 6.1, bold = false, align = "left", boxed = false }: { x: number; y: number; w?: number; text?: string; size?: number; bold?: boolean; align?: "left" | "center" | "right"; boxed?: boolean }) {
-  const renderText = boxed ? normalizeBoxText(text) : (text || "");
-  return <div className="pdf-text" style={{ left: `${x}%`, top: `${y}%`, width: w ? `${w}%` : undefined, fontSize: `${size}px`, fontWeight: bold ? 700 : 400, textAlign: align, letterSpacing: boxed ? "6px" : "0px", fontFamily: boxed ? "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" : undefined }}>{renderText}</div>;
+  const normalized = normalizeBoxText(text);
+  const renderText = boxed ? normalized.split("").join(" ") : (text || "");
+  return <div className="pdf-text" style={{ left: `${x}%`, top: `${y}%`, width: w ? `${w}%` : undefined, fontSize: `${size}px`, fontWeight: bold ? 700 : 400, textAlign: align, letterSpacing: boxed ? "0.15px" : "0px", fontFamily: boxed ? "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" : undefined, whiteSpace: boxed ? "pre" : "nowrap" }}>{renderText}</div>;
 }
 const Tick = ({ x, y }: { x: number; y: number }) => <Text x={x} y={y} text="✓" size={9} bold align="center" />;
 const hasDoc = (data: ClaimData, label: string) => (data.documents || []).includes(label);
@@ -52,9 +56,19 @@ export default function FormRenderer({ data }: Props) {
   const rows = (data.billRows || []).slice(0, 10);
   const qrValue = JSON.stringify({ v: 3, policyNo: data.policyNumber || "", patient: data.patientName || "", admission: data.admissionDate || "", discharge: data.dischargeDate || "", hospital: data.hospitalName || "" });
 
+  const pages = [
+    { id: "p1", template: claimFormPartA, withOverlay: true },
+    { id: "p2", template: claimFormPartA, withOverlay: false },
+    { id: "p3", template: claimFormPartB, withOverlay: false },
+    { id: "p4", template: claimFormPartB, withOverlay: false },
+  ] as const;
+
   return (
     <div className="form-preview-wrap">
-      <PageFrame template={claimFormPartA} qrValue={qrValue}>
+      {pages.map((page) => (
+        <PageFrame key={page.id} template={page.template} qrValue={`${qrValue}|${page.id}`}>
+          {page.withOverlay ? (
+            <>
         <Text x={8.4} y={7.9} w={22} text={data.policyNumber} boxed /><Text x={8.4} y={11.0} w={25} text={data.tpaId} boxed />
         <Text x={8.4} y={14.8} w={45} text={data.policyholderName} boxed /><Text x={8.4} y={19.0} w={50} text={data.policyholderAddress1} boxed />
         <Text x={18.9} y={24.4} w={13} text={data.policyholderCity} boxed /><Text x={44.3} y={24.4} w={12} text={data.policyholderState} boxed /><Text x={18.8} y={27.0} w={8} text={data.policyholderPin} boxed /><Text x={34.2} y={27.0} w={14} text={data.phone} boxed /><Text x={58.9} y={27.0} w={27} text={data.email} />
@@ -98,11 +112,10 @@ export default function FormRenderer({ data }: Props) {
 
         <Text x={8.1} y={94.3} w={18} text={data.pan} /><Text x={34.1} y={94.3} w={21} text={data.bankAccountNumber} />
         <Text x={8.1} y={96.3} w={43} text={data.bankNameBranch} /><Text x={8.1} y={98.5} w={29} text={data.chequePayableTo} /><Text x={58.9} y={98.5} w={16} text={data.ifsc} />
-      </PageFrame>
-
-      <PageFrame template={claimFormPartA} qrValue={`${qrValue}|p2`} />
-      <PageFrame template={claimFormPartB} qrValue={`${qrValue}|p3`} />
-      <PageFrame template={claimFormPartB} qrValue={`${qrValue}|p4`} />
+            </>
+          ) : null}
+        </PageFrame>
+      ))}
     </div>
   );
 }
