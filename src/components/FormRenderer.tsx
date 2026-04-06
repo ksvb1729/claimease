@@ -31,8 +31,8 @@ function deriveAge(dob?: string) {
   return { years: String(Math.max(0, years)), months: String(Math.max(0, months)) };
 }
 
-function Text({ x, y, w, text, size = 6.3, bold = false, align = "left" }: { x: number; y: number; w?: number; text?: string; size?: number; bold?: boolean; align?: "left" | "center" | "right" }) {
-  return <div className="pdf-text" style={{ left: `${x}%`, top: `${y}%`, width: w ? `${w}%` : undefined, fontSize: `${size}px`, fontWeight: bold ? 700 : 400, textAlign: align }}>{text || ""}</div>;
+function Text({ x, y, w, text, size = 6.1, bold = false, align = "left", boxed = false }: { x: number; y: number; w?: number; text?: string; size?: number; bold?: boolean; align?: "left" | "center" | "right"; boxed?: boolean }) {
+  return <div className="pdf-text" style={{ left: `${x}%`, top: `${y + 0.2}%`, width: w ? `${w}%` : undefined, fontSize: `${size}px`, fontWeight: bold ? 700 : 400, textAlign: align, letterSpacing: boxed ? "1px" : "0px", textTransform: boxed ? "uppercase" : "none" }}>{text || ""}</div>;
 }
 const Tick = ({ x, y }: { x: number; y: number }) => <Text x={x} y={y} text="✓" size={9} bold align="center" />;
 const hasDoc = (data: ClaimData, label: string) => (data.documents || []).includes(label);
@@ -50,18 +50,18 @@ export default function FormRenderer({ data }: Props) {
   return (
     <div className="form-preview-wrap">
       <PageFrame template={claimFormPartA} qrValue={qrValue}>
-        <Text x={8.0} y={7.7} w={22} text={data.policyNumber} /><Text x={8.0} y={10.9} w={25} text={data.tpaId} />
-        <Text x={8.0} y={14.7} w={45} text={data.policyholderName} /><Text x={8.0} y={18.9} w={50} text={data.policyholderAddress1} />
-        <Text x={18.9} y={24.3} w={13} text={data.policyholderCity} /><Text x={44.3} y={24.3} w={12} text={data.policyholderState} /><Text x={18.8} y={26.95} w={8} text={data.policyholderPin} /><Text x={34.2} y={26.95} w={14} text={data.phone} /><Text x={58.9} y={26.95} w={27} text={data.email} />
+        <Text x={8.4} y={7.9} w={22} text={data.policyNumber} boxed /><Text x={8.4} y={11.0} w={25} text={data.tpaId} boxed />
+        <Text x={8.4} y={14.8} w={45} text={data.policyholderName} boxed /><Text x={8.4} y={19.0} w={50} text={data.policyholderAddress1} boxed />
+        <Text x={18.9} y={24.4} w={13} text={data.policyholderCity} boxed /><Text x={44.3} y={24.4} w={12} text={data.policyholderState} boxed /><Text x={18.8} y={27.0} w={8} text={data.policyholderPin} boxed /><Text x={34.2} y={27.0} w={14} text={data.phone} boxed /><Text x={58.9} y={27.0} w={27} text={data.email} />
         {data.currentOtherCover === "Yes" ? <Tick x={27.9} y={31.95} /> : <Tick x={32.7} y={31.95} />}<Text x={58.5} y={31.95} w={12} text={formatDate(data.firstInsuranceStart)} />
-        <Text x={10.8} y={34.7} w={18} text={data.currentOtherCompanyName} /><Text x={43.8} y={34.7} w={14} text={data.currentOtherPolicyNo} /><Text x={10.6} y={37.1} w={11} text={data.currentOtherSumInsured} />
+        <Text x={10.8} y={34.8} w={18} text={data.currentOtherCompanyName} boxed /><Text x={43.8} y={34.8} w={14} text={data.currentOtherPolicyNo} boxed /><Text x={10.6} y={37.2} w={11} text={data.currentOtherSumInsured} boxed />
         {data.hospitalizedLastFourYears === "Yes" ? <Tick x={64.5} y={37.1} /> : <Tick x={69.1} y={37.1} />}<Text x={79.2} y={37.1} w={6} text={formatMonthYear(data.lastHospitalizationDate)} /><Text x={10.4} y={39.8} w={23} text={data.lastHospitalizationDiagnosis} />
         {data.previousOtherCover === "Yes" ? <Tick x={84.8} y={39.8} /> : <Tick x={89.2} y={39.8} />}<Text x={10.5} y={42.3} w={23} text={data.previousOtherCompanyName} />
-        <Text x={8.2} y={45.7} w={45} text={data.patientName} />{data.gender === "Male" ? <Tick x={26.1} y={48.9} /> : data.gender === "Female" ? <Tick x={30.3} y={48.9} /> : null}
+        <Text x={8.2} y={45.8} w={45} text={data.patientName} boxed />{data.gender === "Male" ? <Tick x={26.1} y={48.9} /> : data.gender === "Female" ? <Tick x={30.3} y={48.9} /> : null}
         <Text x={44.8} y={48.9} w={4} text={age.years} /><Text x={52.8} y={48.9} w={4} text={age.months} /><Text x={65.9} y={48.9} w={15} text={formatDate(data.patientDob)} />
         {data.relationship === "Myself" ? <Tick x={27.0} y={51.95} /> : data.relationship === "Spouse" ? <Tick x={33.2} y={51.95} /> : data.relationship === "Child" ? <Tick x={39.5} y={51.95} /> : data.relationship === "Father" ? <Tick x={45.5} y={51.95} /> : data.relationship === "Mother" ? <Tick x={52.0} y={51.95} /> : data.relationship ? <Tick x={58.2} y={51.95} /> : null}
         {data.occupation === "Service" ? <Tick x={24.0} y={54.95} /> : data.occupation === "Self Employed" ? <Tick x={31.6} y={54.95} /> : data.occupation === "Homemaker" ? <Tick x={39.9} y={54.95} /> : data.occupation === "Student" ? <Tick x={49.0} y={54.95} /> : data.occupation === "Retired" ? <Tick x={56.0} y={54.95} /> : data.occupation ? <Tick x={62.2} y={54.95} /> : null}
-        <Text x={8.2} y={58.2} w={48} text={data.sameAddress === true ? "" : [data.patientAddress1, data.patientCity, data.patientState].filter(Boolean).join(", ")} /><Text x={18.8} y={63.55} w={8} text={data.sameAddress === true ? "" : data.patientPin} />
+        <Text x={8.2} y={58.3} w={48} text={data.sameAddress === true ? "" : [data.patientAddress1, data.patientCity, data.patientState].filter(Boolean).join(", ")} boxed /><Text x={18.8} y={63.6} w={8} text={data.sameAddress === true ? "" : data.patientPin} boxed />
 
         <Text x={23.2} y={66.9} w={42} text={data.hospitalName} />{data.roomCategory === "Day care" ? <Tick x={25.9} y={70.0} /> : data.roomCategory === "Single occupancy" ? <Tick x={34.8} y={70.0} /> : data.roomCategory === "Twin sharing" ? <Tick x={46.1} y={70.0} /> : data.roomCategory ? <Tick x={60.1} y={70.0} /> : null}
         {data.hospitalizationReason === "Injury" ? <Tick x={26.4} y={72.95} /> : data.hospitalizationReason === "Illness" ? <Tick x={33.0} y={72.95} /> : data.hospitalizationReason === "Maternity" ? <Tick x={39.6} y={72.95} /> : null}

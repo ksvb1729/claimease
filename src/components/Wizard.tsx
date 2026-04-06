@@ -22,6 +22,17 @@ const documentChecklist = [
   "Claim form duly signed","Copy of claim intimation","Hospital main bill","Hospital break-up bill","Hospital bill payment receipt","Hospital discharge summary","Pharmacy bill","Operation Theatre notes","ECG","Doctor request for investigation","Investigation reports","Doctor prescriptions","Others",
 ];
 
+const SECTION_HELPERS: Record<string, string> = {
+  "Policyholder": "Use details exactly as they appear on policy documents.",
+  "Patient": "Use the hospitalized person’s details from hospital records.",
+  "Insurance history": "If unsure, keep papers handy and fill the closest confirmed value.",
+  "Hospital stay": "Use admission/discharge details from the discharge summary.",
+  "Claim details": "Enter bill amounts in rupees. Use 0 where not applicable.",
+  "Bills & docs": "These map to the checklist and bills-enclosed table in Part A.",
+  "Bank details": "Use account details where reimbursement should be credited.",
+  "Declaration": "These fields appear near the insured declaration in Part A.",
+};
+
 const defaultBillRows = (): BillRow[] => [
   { id: "1", billNo: "", date: "", issuedBy: "", towards: "Hospital Main Bill", amount: "" },
   { id: "2", billNo: "", date: "", issuedBy: "", towards: "Pre-hospitalization Bills", amount: "" },
@@ -199,7 +210,7 @@ export default function Wizard({ initialData, onSave, onComplete }: WizardProps)
     <div className="wizard-shell">
       <div className="wizard-meta no-print"><div className="wizard-meta-row"><span className="wizard-section-label">{step.section}</span><span className="wizard-progress-label">{progress}%</span></div><div className="progress-track"><div className="progress-fill" style={{ width: `${progress}%` }} /></div></div>
       <div className="question-card">
-        {step.key !== "review" && <><div className="question-eyebrow">{step.section}</div><h1 className="question-title">{step.title}</h1>{step.helper && <p className="question-helper">{step.helper}</p>}</>}
+        {step.key !== "review" && <><div className="question-eyebrow">{step.section}</div><h1 className="question-title">{step.title}</h1><p className="question-helper">{step.helper || SECTION_HELPERS[step.section] || "Fill this carefully as per your claim documents."}</p></>}
         {renderStep(step, form, setValue)}
         {validationError && <p className="validation-text">{validationError}</p>}
         <div className="question-actions no-print">
@@ -248,6 +259,9 @@ function renderStep(step: StepDef, form: ClaimData, setValue: (key: keyof ClaimD
   if (["policyholderState", "patientState"].includes(step.key)) {
     return <SelectInput value={String((form as any)[step.key] || "")} onChange={(v) => setValue(step.key as keyof ClaimData, v)} options={STATE_OPTIONS} />;
   }
+  if (step.key === "systemOfMedicine") {
+    return <SelectInput value={form.systemOfMedicine || ""} onChange={(v) => setValue("systemOfMedicine", v)} options={["Allopathy", "Ayurveda", "Homeopathy", "Siddha", "Unani", "Naturopathy", "Other"]} />;
+  }
   if (step.key === "roomCategory") {
     return <SelectInput value={form.roomCategory || ""} onChange={(v) => setValue("roomCategory", v)} options={["Day care", "Single occupancy", "Twin sharing", "3 or more beds"]} />;
   }
@@ -263,11 +277,23 @@ function renderStep(step: StepDef, form: ClaimData, setValue: (key: keyof ClaimD
   }
   if (step.key === "review") return <ReviewBlock form={form} age={deriveAgeParts(form.patientDob)} />;
 
+  if (step.key === "chequePayableTo") {
+    return <TextInputWithSuggestions value={String(form.chequePayableTo || "")} onChange={(v) => setValue("chequePayableTo", v)} suggestions={[form.policyholderName, form.patientName].filter(Boolean) as string[]} />;
+  }
   const type = ["patientDob","firstInsuranceStart","diseaseOrInjuryDate","admissionDate","dischargeDate","lastHospitalizationDate","declarationDate"].includes(step.key) ? "date" : ["admissionTime","dischargeTime"].includes(step.key) ? "time" : "text";
   return <TextInput value={String((form as any)[step.key] || "")} onChange={(v) => setValue(step.key as keyof ClaimData, v)} type={type} />;
 }
 
 function getStepValidation(key: string, form: ClaimData) {
+  const requiredTextKeys = ["policyholderName", "patientName", "policyNumber", "hospitalName", "systemOfMedicine", "bankAccountNumber", "ifsc"];
+  if (requiredTextKeys.includes(key) && !String((form as any)[key] || "").trim()) {
+    return "This field is required.";
+  }
+  const amountKeys = ["preExpenses","hospitalExpenses","postExpenses","healthCheckupCost","ambulanceCharges","othersClaimAmount"];
+  if (amountKeys.includes(key)) {
+    const v = String((form as any)[key] || "");
+    if (v && !/^\d+(\.\d{1,2})?$/.test(v)) return "Please enter a valid amount (numbers only).";
+  }
   if (key === "policyholderPin" || key === "patientPin") {
     const value = String((form as any)[key] || "");
     if (value && !/^\d{6}$/.test(value)) return "PIN code should be 6 digits.";
@@ -284,6 +310,10 @@ function ChoiceGrid({ options, value, onChange }: { options: string[]; value: st
 }
 function TextInput({ value, onChange, type = "text" }: { value: string; onChange: (value: string) => void; type?: string }) {
   return <input className="text-input" type={type} value={value} onChange={(e) => onChange(e.target.value)} />;
+}
+function TextInputWithSuggestions({ value, onChange, suggestions }: { value: string; onChange: (value: string) => void; suggestions: string[] }) {
+  const id = "suggested-payee-list";
+  return <><input className="text-input" list={id} value={value} onChange={(e) => onChange(e.target.value)} /><datalist id={id}>{suggestions.map((s) => <option key={s} value={s} />)}</datalist></>;
 }
 function SelectInput({ value, onChange, options }: { value: string; onChange: (value: string) => void; options: string[] }) {
   return <select className="text-input" value={value} onChange={(e) => onChange(e.target.value)}><option value="">Select</option>{options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}</select>;
