@@ -1,133 +1,180 @@
-import { QRCodeSVG } from 'qrcode.react';
-import partA from '../assets/irda-part-a.png';
-import partB from '../assets/irda-part-b.png';
-import { ClaimDraft } from '../schema/types';
-import { buildPagePayload } from '../lib/qr';
-import { computeBillsTotal, computePartATotal, formatName } from '../lib/claimEngine';
+import type { ClaimDraft } from '../App';
+import partA from '../assets/claim-form-part-a.png';
+import partB from '../assets/claim-form-part-b.png';
 
-type Box = { x: number; y: number; w: number; h: number; text: string; size?: number; weight?: number };
-
-const PAGE_WIDTH = 1240;
-const PAGE_HEIGHT = 1755;
-
-function fitFontSize(text: string, width: number, base = 11) {
-  if (!text) return base;
-  const estimated = width / Math.max(text.length * 0.58, 1);
-  return Math.max(8.5, Math.min(base, estimated));
+function formatDate(dateStr: string) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${dd}-${mm}-${yyyy}`;
 }
 
-function formatDate(value: string) {
+function formatMonthYear(value: string) {
   if (!value) return '';
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const [year, month, day] = value.split('-');
-    return `${day}-${month}-${year}`;
+  if (/^\d{2}-\d{4}$/.test(value)) return value;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return `${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+}
+
+function formatCurrency(v: string) {
+  if (!v) return '';
+  return String(v).replace(/,/g, '');
+}
+
+function ageFromDob(dob: string) {
+  if (!dob) return { years: '', months: '' };
+  const birth = new Date(dob);
+  if (Number.isNaN(birth.getTime())) return { years: '', months: '' };
+  const today = new Date();
+  let years = today.getFullYear() - birth.getFullYear();
+  let months = today.getMonth() - birth.getMonth();
+  if (today.getDate() < birth.getDate()) months -= 1;
+  if (months < 0) {
+    years -= 1;
+    months += 12;
   }
-  if (/^\d{4}-\d{2}$/.test(value)) {
-    const [year, month] = value.split('-');
-    return `${month}-${year}`;
-  }
-  return value;
+  return { years: String(Math.max(0, years)), months: String(Math.max(0, months)) };
 }
 
-function textBoxesForPartA(draft: ClaimDraft): Box[] {
-  return [
-    { x: 77, y: 87, w: 240, h: 20, text: draft.primaryInsured.policyNo },
-    { x: 767, y: 87, w: 220, h: 20, text: draft.primaryInsured.certificateNo },
-    { x: 140, y: 117, w: 265, h: 20, text: draft.primaryInsured.companyTpaIdNo },
-    { x: 88, y: 150, w: 1010, h: 20, text: formatName(draft.primaryInsured.name) },
-    { x: 88, y: 181, w: 1010, h: 20, text: draft.primaryInsured.address.line1 },
-    { x: 84, y: 214, w: 300, h: 20, text: draft.primaryInsured.address.city },
-    { x: 466, y: 214, w: 240, h: 20, text: draft.primaryInsured.address.state },
-    { x: 88, y: 245, w: 170, h: 20, text: draft.primaryInsured.address.pinCode },
-    { x: 388, y: 245, w: 190, h: 20, text: draft.primaryInsured.address.phone },
-    { x: 739, y: 245, w: 330, h: 20, text: draft.primaryInsured.address.email, size: 10 },
-    { x: 89, y: 447, w: 1010, h: 20, text: formatName(draft.insuredPatient.name) },
-    { x: 600, y: 478, w: 60, h: 20, text: draft.insuredPatient.ageYears },
-    { x: 726, y: 478, w: 60, h: 20, text: draft.insuredPatient.ageMonths },
-    { x: 915, y: 478, w: 150, h: 20, text: formatDate(draft.insuredPatient.dob) },
-    { x: 84, y: 602, w: 1010, h: 20, text: draft.hospitalization.hospitalName },
-    { x: 628, y: 671, w: 150, h: 20, text: formatDate(draft.hospitalization.eventDate) },
-    { x: 157, y: 703, w: 150, h: 20, text: formatDate(draft.hospitalization.admissionDate) },
-    { x: 430, y: 703, w: 90, h: 20, text: draft.hospitalization.admissionTime },
-    { x: 698, y: 703, w: 150, h: 20, text: formatDate(draft.hospitalization.dischargeDate) },
-    { x: 950, y: 703, w: 90, h: 20, text: draft.hospitalization.dischargeTime },
-    { x: 873, y: 794, w: 180, h: 20, text: draft.hospitalization.systemOfMedicine },
-    { x: 150, y: 846, w: 150, h: 20, text: draft.treatmentExpenses.preHospitalization },
-    { x: 150, y: 878, w: 150, h: 20, text: draft.treatmentExpenses.postHospitalization },
-    { x: 150, y: 908, w: 150, h: 20, text: draft.treatmentExpenses.ambulance },
-    { x: 637, y: 846, w: 150, h: 20, text: draft.treatmentExpenses.hospitalization },
-    { x: 637, y: 878, w: 150, h: 20, text: draft.treatmentExpenses.healthCheckup },
-    { x: 637, y: 908, w: 150, h: 20, text: draft.treatmentExpenses.others },
-    { x: 618, y: 938, w: 170, h: 20, text: String(computePartATotal(draft)), weight: 700 },
-    { x: 190, y: 969, w: 50, h: 20, text: draft.treatmentExpenses.preHospitalizationDays },
-    { x: 657, y: 969, w: 50, h: 20, text: draft.treatmentExpenses.postHospitalizationDays },
-    { x: 229, y: 1192, w: 160, h: 20, text: draft.bankDetails.pan },
-    { x: 590, y: 1192, w: 350, h: 20, text: draft.bankDetails.accountNumber },
-    { x: 165, y: 1222, w: 620, h: 20, text: draft.bankDetails.bankNameBranch },
-    { x: 224, y: 1253, w: 255, h: 20, text: draft.bankDetails.payableTo },
-    { x: 904, y: 1253, w: 165, h: 20, text: draft.bankDetails.ifsc },
-  ];
+function joinAddress(address: string, city: string, state: string, pin: string) {
+  return [address, city, state, pin].filter(Boolean).join(', ');
 }
 
-function BoxLayer({ boxes }: { boxes: Box[] }) {
+function fitClass(value: string, max = 24) {
+  const len = value?.length || 0;
+  if (len > max + 20) return 'tiny';
+  if (len > max) return 'small';
+  return '';
+}
+
+type OverlayField = {
+  value: string;
+  top: number;
+  left: number;
+  width: number;
+  align?: 'left' | 'center' | 'right';
+};
+
+function renderField(field: OverlayField, index: number) {
   return (
-    <>
-      {boxes.map((box, index) => {
-        const left = (box.x / PAGE_WIDTH) * 100;
-        const top = (box.y / PAGE_HEIGHT) * 100;
-        const width = (box.w / PAGE_WIDTH) * 100;
-        const minHeight = (box.h / PAGE_HEIGHT) * 100;
-        const fontSize = fitFontSize(box.text, box.w, box.size ?? 11);
-
-        return (
-          <div
-            key={`${box.x}-${box.y}-${index}`}
-            className="box-value"
-            style={{
-              left: `${left}%`,
-              top: `${top}%`,
-              width: `${width}%`,
-              minHeight: `${minHeight}%`,
-              fontSize: `${fontSize}px`,
-              fontWeight: box.weight ?? 600,
-              letterSpacing: box.text.length > 26 ? '-0.01em' : '0',
-            }}
-          >
-            {box.text}
-          </div>
-        );
-      })}
-    </>
-  );
-}
-
-function PageFrame({ image, qrPayload, boxes, showQr = true }: { image: string; qrPayload?: object; boxes?: Box[]; showQr?: boolean }) {
-  return (
-    <div className="page-frame">
-      <img src={image} alt="IRDAI form page" className="page-image" />
-      {showQr && qrPayload && (
-        <div className="qr-zone">
-          <QRCodeSVG value={JSON.stringify(qrPayload)} size={72} />
-        </div>
-      )}
-      {boxes && boxes.length > 0 && <BoxLayer boxes={boxes} />}
+    <div
+      key={index}
+      className={`overlay-text ${fitClass(field.value)}`}
+      style={{ top: `${field.top}%`, left: `${field.left}%`, width: `${field.width}%`, textAlign: field.align || 'left' }}
+    >
+      {field.value}
     </div>
   );
 }
 
-export function FormRenderer({ draft, compact = false }: { draft: ClaimDraft; compact?: boolean }) {
+export default function FormRenderer({ draft }: { draft: ClaimDraft }) {
+  const age = ageFromDob(draft.patient.dateOfBirth);
+  const patientAddress = draft.patient.addressSameAsPrimary
+    ? joinAddress(draft.primaryInsured.address, draft.primaryInsured.city, draft.primaryInsured.state, draft.primaryInsured.pinCode)
+    : joinAddress(draft.patient.address, draft.patient.city, draft.patient.state, draft.patient.pinCode);
+
+  const partAFields: OverlayField[] = [
+    { value: draft.primaryInsured.policyNumber, top: 6.35, left: 12.4, width: 22 },
+    { value: draft.primaryInsured.certificateNumber, top: 6.35, left: 76.6, width: 15 },
+    { value: draft.primaryInsured.companyTpaId, top: 8.45, left: 14.8, width: 23 },
+    { value: draft.primaryInsured.fullName, top: 10.25, left: 10.8, width: 62 },
+    { value: draft.primaryInsured.address, top: 12.35, left: 9.4, width: 83 },
+    { value: draft.primaryInsured.city, top: 16.05, left: 8.2, width: 18 },
+    { value: draft.primaryInsured.state, top: 16.05, left: 52.6, width: 12 },
+    { value: draft.primaryInsured.pinCode, top: 18.0, left: 10.5, width: 12 },
+    { value: draft.primaryInsured.phone, top: 18.0, left: 31.1, width: 16 },
+    { value: draft.primaryInsured.email, top: 18.0, left: 69.4, width: 23 },
+    { value: draft.insuranceHistory.coveredByOtherPolicy === 'yes' ? 'Yes' : draft.insuranceHistory.coveredByOtherPolicy === 'no' ? 'No' : '', top: 22.2, left: 62.8, width: 7 },
+    { value: formatDate(draft.insuranceHistory.firstInsuranceStartDate), top: 22.2, left: 86, width: 11, align: 'center' },
+    { value: draft.insuranceHistory.otherInsurerName, top: 24.35, left: 8.3, width: 22 },
+    { value: draft.insuranceHistory.otherPolicyNumber, top: 24.35, left: 50.3, width: 18 },
+    { value: formatCurrency(draft.insuranceHistory.otherSumInsured), top: 26.25, left: 17.1, width: 14 },
+    { value: draft.insuranceHistory.hospitalizedLast4Years === 'yes' ? 'Yes' : draft.insuranceHistory.hospitalizedLast4Years === 'no' ? 'No' : '', top: 26.25, left: 76.5, width: 7 },
+    { value: formatMonthYear(draft.insuranceHistory.lastHospitalizationMonthYear), top: 26.25, left: 92.5, width: 8, align: 'center' },
+    { value: draft.insuranceHistory.lastHospitalizationDiagnosis, top: 28.1, left: 12.4, width: 24 },
+    { value: draft.insuranceHistory.previouslyCovered === 'yes' ? 'Yes' : draft.insuranceHistory.previouslyCovered === 'no' ? 'No' : '', top: 28.1, left: 77.1, width: 7 },
+    { value: draft.insuranceHistory.previousInsurerName, top: 29.9, left: 14.5, width: 24 },
+    { value: draft.patient.fullName, top: 33.25, left: 8.4, width: 63 },
+    { value: draft.patient.gender, top: 35.1, left: 23.2, width: 8 },
+    { value: age.years, top: 35.1, left: 42.4, width: 4, align: 'center' },
+    { value: age.months, top: 35.1, left: 54.5, width: 4, align: 'center' },
+    { value: formatDate(draft.patient.dateOfBirth), top: 35.1, left: 72.7, width: 18 },
+    { value: draft.patient.relationship, top: 36.95, left: 28.5, width: 20 },
+    { value: draft.patient.occupation, top: 38.85, left: 19.2, width: 24 },
+    { value: patientAddress, top: 41.2, left: 15.1, width: 77 },
+    { value: draft.patient.addressSameAsPrimary ? draft.primaryInsured.city : draft.patient.city, top: 44.7, left: 8.2, width: 18 },
+    { value: draft.patient.addressSameAsPrimary ? draft.primaryInsured.state : draft.patient.state, top: 44.7, left: 52.8, width: 12 },
+    { value: draft.patient.addressSameAsPrimary ? draft.primaryInsured.pinCode : draft.patient.pinCode, top: 46.6, left: 10.3, width: 12 },
+    { value: draft.patient.addressSameAsPrimary ? draft.primaryInsured.phone : draft.patient.phone, top: 46.6, left: 31.3, width: 16 },
+    { value: draft.patient.addressSameAsPrimary ? draft.primaryInsured.email : draft.patient.email, top: 46.6, left: 69.5, width: 23 },
+    { value: draft.hospitalization.hospitalName, top: 50.2, left: 22.6, width: 47 },
+    { value: draft.hospitalization.roomCategory, top: 52.1, left: 24.2, width: 34 },
+    { value: draft.hospitalization.hospitalizationDueTo, top: 54.1, left: 21.5, width: 16 },
+    { value: formatDate(draft.hospitalization.eventDate), top: 54.1, left: 79.7, width: 15, align: 'center' },
+    { value: formatDate(draft.hospitalization.admissionDate), top: 56.05, left: 17.5, width: 14, align: 'center' },
+    { value: draft.hospitalization.admissionTime, top: 56.05, left: 43.8, width: 8, align: 'center' },
+    { value: formatDate(draft.hospitalization.dischargeDate), top: 56.05, left: 59.8, width: 14, align: 'center' },
+    { value: draft.hospitalization.dischargeTime, top: 56.05, left: 86.6, width: 8, align: 'center' },
+    { value: draft.hospitalization.injuryCause, top: 58.2, left: 18.2, width: 35 },
+    { value: draft.hospitalization.medicoLegal, top: 58.2, left: 77.6, width: 7 },
+    { value: draft.hospitalization.policeReported, top: 60.0, left: 35.2, width: 7 },
+    { value: draft.hospitalization.firAttached, top: 60.0, left: 70.7, width: 7 },
+    { value: draft.hospitalization.systemOfMedicine, top: 60.0, left: 85.4, width: 12 },
+    { value: formatCurrency(draft.claim.preHospitalization), top: 64.1, left: 27.1, width: 11, align: 'right' },
+    { value: formatCurrency(draft.claim.hospitalization), top: 64.1, left: 61.8, width: 11, align: 'right' },
+    { value: formatCurrency(draft.claim.postHospitalization), top: 66.0, left: 27.1, width: 11, align: 'right' },
+    { value: formatCurrency(draft.claim.healthCheckup), top: 66.0, left: 61.8, width: 11, align: 'right' },
+    { value: formatCurrency(draft.claim.ambulance), top: 67.9, left: 27.1, width: 11, align: 'right' },
+    { value: `${draft.claim.otherExpenseCode} ${formatCurrency(draft.claim.otherExpenseAmount)}`.trim(), top: 67.9, left: 61.8, width: 16, align: 'right' },
+    { value: draft.claim.preHospitalizationDays, top: 70.0, left: 27.5, width: 8, align: 'center' },
+    { value: draft.claim.postHospitalizationDays, top: 70.0, left: 61.6, width: 8, align: 'center' },
+    { value: draft.hospitalization.domiciliaryClaim, top: 72.0, left: 31.6, width: 7 },
+    { value: formatCurrency(draft.claim.hospitalDailyCash), top: 74.0, left: 28.2, width: 10, align: 'right' },
+    { value: formatCurrency(draft.claim.surgicalCash), top: 74.0, left: 60.5, width: 10, align: 'right' },
+    { value: formatCurrency(draft.claim.criticalIllness), top: 75.9, left: 28.2, width: 10, align: 'right' },
+    { value: formatCurrency(draft.claim.convalescence), top: 75.9, left: 60.5, width: 10, align: 'right' },
+    { value: formatCurrency(draft.claim.prePostLumpSum), top: 77.8, left: 31.4, width: 10, align: 'right' },
+    { value: formatCurrency(draft.claim.otherBenefit), top: 77.8, left: 60.5, width: 10, align: 'right' },
+    { value: draft.bank.pan, top: 94.15, left: 8.8, width: 28 },
+    { value: draft.bank.accountNumber, top: 94.15, left: 55.7, width: 23 },
+    { value: `${draft.bank.bankName} ${draft.bank.branch}`.trim(), top: 96.05, left: 16.2, width: 48 },
+    { value: draft.bank.payeeName, top: 98.0, left: 24.2, width: 29 },
+    { value: draft.bank.ifsc, top: 98.0, left: 79.8, width: 15 },
+  ];
+
   return (
-    <div className={`render-stack ${compact ? 'render-stack-compact' : ''}`}>
-      <PageFrame image={partA} qrPayload={buildPagePayload('part-a', draft)} boxes={textBoxesForPartA(draft)} />
-      <PageFrame image={partB} showQr={false} boxes={[]} />
-      {!compact && (
-        <div className="totals-strip">
-          <strong>Part A total:</strong> Rs. {computePartATotal(draft)}
-          <span>
-            <strong>Enclosed bills total:</strong> Rs. {computeBillsTotal(draft)}
-          </span>
+    <div className="render-shell">
+      <section className="review-summary-card">
+        <h2>Review summary</h2>
+        <p>
+          Part A is prefilled from the wizard. Part B is intentionally left blank because the official form says it is to be filled by the hospital.
+        </p>
+        <ul>
+          <li>Patient: {draft.patient.fullName || '—'}</li>
+          <li>Hospital: {draft.hospitalization.hospitalName || '—'}</li>
+          <li>Claimed hospitalization amount: ₹{formatCurrency(draft.claim.hospitalization) || '0'}</li>
+          <li>Declaration date: {formatDate(draft.declaration.date) || '—'}</li>
+        </ul>
+      </section>
+
+      <section className="form-page-wrap">
+        <div className="form-caption">Part A — to be filled in by the insured</div>
+        <div className="form-page">
+          <img src={partA} alt="IRDAI claim form Part A" className="form-bg" />
+          <div className="overlay-layer">{partAFields.map(renderField)}</div>
         </div>
-      )}
+      </section>
+
+      <section className="form-page-wrap">
+        <div className="form-caption">Part B — left blank for the hospital / provider</div>
+        <div className="form-page">
+          <img src={partB} alt="IRDAI claim form Part B blank" className="form-bg" />
+        </div>
+      </section>
     </div>
   );
 }
