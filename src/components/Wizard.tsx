@@ -204,13 +204,22 @@ export default function Wizard({ initialData, onSave, onComplete }: WizardProps)
         {validationError && <p className="validation-text">{validationError}</p>}
         <div className="question-actions no-print">
           <button className="ghost-btn" onClick={back} disabled={stepIndex === 0}>Back</button>
-          {!AUTO_NEXT.has(step.key) && <button className="primary-btn" onClick={next} disabled={Boolean(validationError)}>{step.key === "review" ? "Generate form" : "Next"}</button>}
+          {(INTRO_STEPS.has(step.key) || !AUTO_NEXT.has(step.key)) && (
+            <button className="primary-btn" onClick={next} disabled={Boolean(validationError)}>
+              {step.key === "review" ? "Generate form" : "Next"}
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
+/**
+ * These narrative steps are pure "continue" checkpoints.
+ * Keep Next visible even if AUTO_NEXT changes during future merges.
+ */
+const INTRO_STEPS = new Set(["policyholderContext", "patientContext", "hospitalContext"]);
 const AUTO_NEXT = new Set<string>();
 
 function renderStep(step: StepDef, form: ClaimData, setValue: (key: keyof ClaimData, value: any) => void) {
