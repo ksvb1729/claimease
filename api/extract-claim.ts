@@ -55,7 +55,7 @@ export default async function handler(req: any, res: any) {
     parts.push({ text: EXTRACTION_PROMPT });
 
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -69,7 +69,9 @@ export default async function handler(req: any, res: any) {
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
       console.error('Gemini API error:', geminiRes.status, errText);
-      return res.status(502).json({ error: 'Could not reach extraction service. Please try again.' });
+      let detail = '';
+      try { detail = JSON.parse(errText)?.error?.message || ''; } catch { detail = errText.slice(0, 200); }
+      return res.status(502).json({ error: `Extraction failed (${geminiRes.status}): ${detail || 'check Vercel logs'}` });
     }
 
     const geminiData = await geminiRes.json();
