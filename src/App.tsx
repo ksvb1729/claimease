@@ -2,6 +2,8 @@
 import React, { useState } from "react";
 import Wizard from "./components/Wizard";
 import FormRenderer from "./components/FormRenderer";
+import UploadScreen from "./components/UploadScreen";
+import ConfirmFields from "./components/ConfirmFields";
 import "./styles.css";
 
 export type BillRow = {
@@ -100,13 +102,14 @@ export type ClaimData = {
   declarationDate?: string;
 };
 
-type Page = "landing" | "wizard" | "review";
+type Page = "landing" | "upload" | "confirm-fields" | "wizard" | "review";
 
 const STORAGE_FILE_NAME = "claimease-progress.json";
 
 export default function App() {
   const [page, setPage] = useState<Page>("landing");
   const [claimData, setClaimData] = useState<ClaimData | null>(null);
+  const [extractedData, setExtractedData] = useState<Partial<ClaimData> | null>(null);
 
   const handleExport = () => {
     if (!claimData) return;
@@ -139,7 +142,34 @@ export default function App() {
     window.print();
   };
 
-  const showSaveAction = page !== "landing" && !!claimData;
+  const handleExtracted = (data: Partial<ClaimData>) => {
+    setExtractedData(data);
+    setPage("confirm-fields");
+  };
+
+  const handleConfirm = (confirmed: Partial<ClaimData>) => {
+    const merged: ClaimData = {
+      sameAddress: true,
+      hadPreExpenses: "No",
+      hadPostExpenses: "No",
+      hadDomiciliary: "No",
+      hasCashBenefits: "No",
+      currentOtherCover: "No",
+      hospitalizedLastFourYears: "No",
+      previousOtherCover: "No",
+      healthCheckupCost: "0",
+      ambulanceCharges: "0",
+      othersClaimAmount: "0",
+      preHospitalizationDays: "0",
+      postHospitalizationDays: "0",
+      payeeType: "Primary policyholder",
+      ...confirmed,
+    };
+    setClaimData(merged);
+    setPage("wizard");
+  };
+
+  const showSaveAction = page !== "landing" && page !== "upload" && !!claimData;
 
   return (
     <div className="app-shell">
@@ -172,37 +202,42 @@ export default function App() {
           <section className="hero">
             <div className="hero-copy">
               <div className="eyebrow">IRDAI reimbursement claim form</div>
-              <h1>Fill the official claim form correctly, one question at a time.</h1>
+              <h1>Upload your hospital documents — we'll fill the form.</h1>
 
               <p className="hero-text">
-                ClaimEase guides the insured part of the reimbursement claim form in
-                plain language, helps users keep the right papers ready, and prepares a
-                cleaner print-ready Part A.
+                Just got discharged? Upload your Final Bill and Discharge Summary.
+                Our AI reads them and pre-fills your IRDAI claim form automatically.
+                You answer a few remaining questions, then print and submit.
               </p>
 
               <div className="benefit-grid">
                 <div className="benefit-card">
-                  <h3>For users</h3>
+                  <h3>For patients</h3>
                   <p>
-                    Fewer confusing insurance terms, less guessing, and a calmer
-                    way to complete a complex claim form.
+                    From 40+ questions down to under 15. Upload your documents
+                    and we handle the rest — no insurance jargon to decode.
                   </p>
                 </div>
                 <div className="benefit-card">
                   <h3>For insurers / TPAs</h3>
                   <p>
-                    More structured claimant input and a QR-backed page summary
-                    on the insured section.
+                    Structured data extracted directly from source documents means
+                    fewer errors and faster claim processing.
                   </p>
                 </div>
               </div>
 
               <div className="cta-row">
-                <button className="primary-btn" onClick={() => setPage("wizard")}>
-                  Start filling my claim form
+                <button className="primary-btn" onClick={() => setPage("upload")}>
+                  Upload my documents →
                 </button>
+                <button className="ghost-btn" onClick={() => setPage("wizard")}>
+                  Answer all questions manually
+                </button>
+              </div>
 
-                <label className="secondary-btn">
+              <div className="cta-row" style={{ marginTop: 0 }}>
+                <label className="ghost-btn" style={{ fontSize: 14 }}>
                   Resume from saved file
                   <input
                     type="file"
@@ -217,11 +252,27 @@ export default function App() {
               </div>
 
               <p className="privacy-line">
-                Privacy-first: progress stays on your device unless you export it.
+                Documents are processed for extraction only — never stored. Progress stays on your device.
               </p>
             </div>
           </section>
         </main>
+      )}
+
+      {page === "upload" && (
+        <UploadScreen
+          onExtracted={handleExtracted}
+          onSkip={() => setPage("wizard")}
+          onBack={() => setPage("landing")}
+        />
+      )}
+
+      {page === "confirm-fields" && extractedData !== null && (
+        <ConfirmFields
+          extracted={extractedData}
+          onConfirm={handleConfirm}
+          onBack={() => setPage("upload")}
+        />
       )}
 
       {page === "wizard" && (
