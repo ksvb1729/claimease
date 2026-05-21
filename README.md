@@ -1,46 +1,102 @@
-# ClaimEase Rebuild
+# ClaimEase
 
-A privacy-first React + TypeScript rebuild of the reimbursement-claim wizard described in the brief.
+**Making policyholders' lives easy with AI for reimbursements.**
 
-## Product choices
+ClaimEase takes the pain out of IRDAI reimbursement claims. Upload your hospital documents and AI fills the form for you — both Part A (patient) and Part B (hospital). Verify, fill the gaps in under 3 minutes, and download a ready-to-submit PDF.
 
-- No backend and no server-side persistence.
-- In-memory draft state only.
-- Explicit JSON export/import for save/resume.
-- Human-friendly wizard flow for data collection.
-- Official-form renderer that uses the insurer PDF page images as the background and a configuration-driven overlay layer.
-- Page-level QR payloads for machine extraction.
+---
 
-## What is implemented
+## What it does
 
-1. End-to-end client-only shell.
-2. Multi-step wizard.
-3. Canonical claim JSON schema.
-4. Export / import logic.
-5. Validation pass for critical errors.
-6. Official-page renderer for Part A and Part B using the uploaded PDF as reference.
-7. Per-page QR code generation.
+1. **Upload** your Final Bill, Discharge Summary, and TPA/Insurance Card
+2. **AI extracts** 30+ fields automatically using Gemini — including diagnosis, ICD codes, treating doctor, hospital PAN, and all billing details
+3. **Form peek** shows the partially-filled IRDAI form so you feel the progress immediately
+4. **Wizard** walks through remaining questions in 7 grouped sections, not 40+ one-by-one
+5. **Download** a properly filled PDF or print directly
 
-## What still needs calibration for production
+### Part A + Part B
+Most tools only help with Part A (patient side). ClaimEase also pre-fills Part B (hospital side) from your Discharge Summary — treating doctor name, diagnosis, ICD-10 codes, procedure details — so the receptionist has less to write and just needs to verify and sign.
 
-- Fine-tune every coordinate in `FormRenderer.tsx` against the target carrier's print DPI.
-- Expand conditional logic and helper text on every wizard step.
-- Add a denser bill-entry editor for all 10 bill rows.
-- Add checkbox placement overlays for Yes/No and checklist ticks.
-- Add PDF export using print CSS or a client-side PDF library.
-- Add accessibility refinements and multilingual support.
+---
 
-## Run locally
+## Tech stack
 
+- **Frontend**: React 18 + TypeScript + Vite
+- **AI extraction**: Google Gemini 2.5 Flash (multi-document: bill + discharge summary + TPA card)
+- **PDF generation**: pdf-lib (fills the official IRDAI form at exact coordinates, downloadable)
+- **QR codes**: LZ-string compressed, auto-splits to two QRs when payload is large
+- **Auth**: HMAC token, user list at `config/users.txt`
+- **Hosting**: Vercel (serverless API + static SPA)
+
+---
+
+## Setup
+
+### Prerequisites
+- Node.js 18+
+- A Vercel account
+- A Google AI Studio API key (Gemini, paid tier recommended)
+
+### Local dev
 ```bash
 npm install
 npm run dev
 ```
 
-## Suggested production architecture
+Add a `.env.local` file:
+```
+GEMINI_API_KEY=your_key_here
+JWT_SECRET=any_random_string
+```
 
-- `app/ui`: wizard, renderer, import/export, review
-- `app/domain`: schema, validation, mapping, QR serializers
-- `app/assets`: official page images or vector templates
-- `app/config`: carrier-specific field maps and language packs
+### Adding users
+Edit `config/users.txt` — one user per line, `USERNAME:PASSWORD`:
+```
+VIJAY:12345
+PRIYA:secret
+```
+Commit and push. Vercel redeploys automatically.
 
+### Vercel environment variables
+Set in Vercel dashboard under Project > Settings > Environment Variables:
+- `GEMINI_API_KEY` — your Gemini API key
+- `JWT_SECRET` — a random secret for signing session tokens (`openssl rand -hex 32`)
+
+---
+
+## Architecture
+
+```
+api/
+  auth.ts           — HMAC token auth, reads config/users.txt
+  extract-claim.ts  — Gemini multimodal extraction (30+ fields)
+config/
+  users.txt         — allowed username:password pairs
+public/
+  Claim_Form.pdf    — blank IRDAI form for download
+src/
+  App.tsx           — page state machine + ClaimData schema
+  components/
+    LoginScreen.tsx     — auth gate for extraction flow
+    UploadScreen.tsx    — 3-zone upload (bill, DS, TPA card)
+    ConfirmFields.tsx   — review AI-extracted fields before proceeding
+    Wizard.tsx          — 7-section grouped form
+    FormRenderer.tsx    — IRDAI form with text overlays + QR
+  utils/
+    generateFilledPdf.ts — pdf-lib: text embedded at exact PDF coords
+```
+
+---
+
+## Privacy
+
+Documents uploaded for extraction are sent to the Gemini API and never stored on any server. Session data stays in the browser. Progress can be exported/imported as a local JSON file.
+
+---
+
+## Roadmap
+
+- Google OAuth + Supabase for user management
+- Usage-based access (Stripe)
+- Multi-page discharge summary support
+- Short-link QR (Vercel KV) for TPA machine-readable access

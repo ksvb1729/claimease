@@ -4,7 +4,10 @@ import Wizard from "./components/Wizard";
 import FormRenderer from "./components/FormRenderer";
 import UploadScreen from "./components/UploadScreen";
 import ConfirmFields from "./components/ConfirmFields";
+import LoginScreen from "./components/LoginScreen";
 import "./styles.css";
+import { generateFilledPdf } from "./utils/generateFilledPdf";
+import claimFormPdfUrl from "./assets/Claim_Form.pdf?url";
 
 export type BillRow = {
   id: string;
@@ -41,6 +44,12 @@ export type ClaimData = {
   previousOtherCover?: string;
   previousOtherCompanyName?: string;
 
+  // From TPA card
+  insurerName?: string;
+  tpaName?: string;
+  memberId?: string;
+  sumInsured?: string;
+
   sameAddress?: boolean | "No";
   policyholderAddress1?: string;
   policyholderCity?: string;
@@ -59,6 +68,11 @@ export type ClaimData = {
   dischargeDate?: string;
   dischargeTime?: string;
   hospitalName?: string;
+  hospitalAddress?: string;
+  hospitalPhone?: string;
+  hospitalEmail?: string;
+  hospitalRegNo?: string;
+  hospitalPan?: string;
   roomCategory?: string;
   systemOfMedicine?: string;
 
@@ -100,9 +114,42 @@ export type ClaimData = {
 
   declarationPlace?: string;
   declarationDate?: string;
+
+  // Part B — hospital / clinical (auto-extracted, verified by hospital)
+  treatingDoctorName?: string;
+  treatingDoctorQualification?: string;
+  diagnosisText?: string;
+  diagnosisIcdCode?: string;
+  procedureName?: string;
+  procedureIcdCode?: string;
+  procedureDate?: string;
+  isPreExistingCondition?: string;
 };
 
-type Page = "landing" | "upload" | "confirm-fields" | "wizard" | "review";
+type Page = "landing" | "login" | "upload" | "confirm-fields" | "form-peek" | "wizard" | "review";
+
+const EXTRACTED_FIELD_LABELS: Partial<Record<keyof ClaimData, string>> = {
+  patientName: "Patient name",
+  gender: "Gender",
+  patientDob: "Date of birth",
+  hospitalName: "Hospital name",
+  admissionDate: "Admission date",
+  admissionTime: "Admission time",
+  dischargeDate: "Discharge date",
+  dischargeTime: "Discharge time",
+  roomCategory: "Room category",
+  systemOfMedicine: "System of medicine",
+  hospitalizationReason: "Hospitalization reason",
+  hospitalExpenses: "Hospital bill total",
+  treatingDoctorName: "Treating doctor",
+  diagnosisText: "Diagnosis",
+  diagnosisIcdCode: "ICD code",
+  procedureName: "Procedure",
+  insurerName: "Insurer",
+  tpaName: "TPA",
+  policyNumber: "Policy number",
+  sumInsured: "Sum insured",
+};
 
 const STORAGE_FILE_NAME = "claimease-progress.json";
 
@@ -110,12 +157,23 @@ export default function App() {
   const [page, setPage] = useState<Page>("landing");
   const [claimData, setClaimData] = useState<ClaimData | null>(null);
   const [extractedData, setExtractedData] = useState<Partial<ClaimData> | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(() => sessionStorage.getItem("ce_auth"));
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const handleLoginSuccess = (token: string) => {
+    sessionStorage.setItem("ce_auth", token);
+    setAuthToken(token);
+    setPage("upload");
+  };
+
+  const handleUploadClick = () => {
+    if (authToken) setPage("upload");
+    else setPage("login");
+  };
 
   const handleExport = () => {
     if (!claimData) return;
-    const blob = new Blob([JSON.stringify(claimData, null, 2)], {
-      type: "application/json",
-    });
+    const blob = new Blob([JSON.stringify(claimData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -132,14 +190,30 @@ export default function App() {
         setClaimData(parsed);
         setPage("wizard");
       } catch {
-        alert("This JSON file could not be read.");
+        alert("This file could not be read.");
       }
     };
     reader.readAsText(file);
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleDownloadFilledPdf = async () => {
+    if (!claimData) return;
+    setDownloadingPdf(true);
+    try {
+      const bytes = await generateFilledPdf(claimData);
+      const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "ClaimEase-filled-form.pdf";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      alert("Could not generate PDF. Try printing to PDF instead.");
+    } finally {
+      setDownloadingPdf(false);
+    }
   };
 
   const handleExtracted = (data: Partial<ClaimData>) => {
@@ -166,33 +240,28 @@ export default function App() {
       ...confirmed,
     };
     setClaimData(merged);
-    setPage("wizard");
+    setPage("form-peek");
   };
 
-  const showSaveAction = page !== "landing" && page !== "upload" && !!claimData;
+  const showSaveAction = page !== "landing" && page !== "upload" && page !== "login" && page !== "form-peek" && !!claimData;
 
   return (
     <div className="app-shell">
       <header className="topbar no-print">
         <div className="brand">
-          <div className="brand-mark">C</div>
+          <div className="brand-mark">CE</div>
           <div>
             <div className="brand-title">ClaimEase</div>
-            <div className="brand-subtitle">IRDAI claim form helper</div>
+            <div className="brand-subtitle">IRDAI reimbursement, simplified</div>
           </div>
         </div>
 
         <div className="topbar-actions">
           {page !== "landing" && (
-            <button className="ghost-btn" onClick={() => setPage("landing")}>
-              Home
-            </button>
+            <button className="ghost-btn" onClick={() => setPage("landing")}>Home</button>
           )}
-
           {showSaveAction && (
-            <button className="ghost-btn" onClick={handleExport}>
-              Save and continue later
-            </button>
+            <button className="ghost-btn" onClick={handleExport}>Save progress</button>
           )}
         </div>
       </header>
@@ -200,67 +269,82 @@ export default function App() {
       {page === "landing" && (
         <main className="landing">
           <section className="hero">
-            <div className="hero-copy">
-              <div className="eyebrow">IRDAI reimbursement claim form</div>
-              <h1>Upload your hospital documents — we'll fill the form.</h1>
+            <div className="hero-inner">
+              <div className="hero-left">
+                <p className="hero-eyebrow">For patients and families</p>
+                <h1 className="hero-h1">
+                  Your claim form,<br />filled in seconds.
+                </h1>
+                <p className="hero-sub">
+                  Upload your hospital documents. We read them, extract the details, and fill your IRDAI reimbursement form automatically. Verify once and print.
+                </p>
 
-              <p className="hero-text">
-                Just got discharged? Upload your Final Bill and Discharge Summary.
-                Our AI reads them and pre-fills your IRDAI claim form automatically.
-                You answer a few remaining questions, then print and submit.
-              </p>
-
-              <div className="benefit-grid">
-                <div className="benefit-card">
-                  <h3>For patients</h3>
-                  <p>
-                    From 40+ questions down to under 15. Upload your documents
-                    and we handle the rest — no insurance jargon to decode.
-                  </p>
+                <div className="hero-steps">
+                  <div className="hero-step">
+                    <span className="step-num">1</span>
+                    <span>Upload Final Bill, Discharge Summary, TPA card</span>
+                  </div>
+                  <div className="hero-step">
+                    <span className="step-num">2</span>
+                    <span>AI reads and fills the form instantly</span>
+                  </div>
+                  <div className="hero-step">
+                    <span className="step-num">3</span>
+                    <span>Verify, fill the gaps, download and submit</span>
+                  </div>
                 </div>
-                <div className="benefit-card">
-                  <h3>For insurers / TPAs</h3>
-                  <p>
-                    Structured data extracted directly from source documents means
-                    fewer errors and faster claim processing.
-                  </p>
+
+                <div className="hero-ctas">
+                  <button className="primary-btn hero-primary-btn" onClick={handleUploadClick}>
+                    Upload documents
+                  </button>
+                </div>
+
+                <div className="hero-secondary-links">
+                  <a className="text-link" href={claimFormPdfUrl} download="IRDAI_Claim_Form.pdf">
+                    Download the blank IRDAI form
+                  </a>
+                  <span className="link-divider">·</span>
+                  <label className="text-link">
+                    Resume saved progress
+                    <input type="file" accept=".json,application/json" hidden
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImport(f); }} />
+                  </label>
+                </div>
+
+                <p className="hero-privacy">
+                  Documents are used only for extraction and never stored on any server.
+                </p>
+              </div>
+
+              <div className="hero-right">
+                <div className="hero-card-stack">
+                  <div className="hero-stat-card">
+                    <div className="stat-number">30+</div>
+                    <div className="stat-label">fields filled automatically</div>
+                  </div>
+                  <div className="hero-stat-card">
+                    <div className="stat-number">3 min</div>
+                    <div className="stat-label">average time to complete</div>
+                  </div>
+                  <div className="hero-stat-card accent">
+                    <div className="stat-number">Part A + B</div>
+                    <div className="stat-label">both sections pre-filled from your documents</div>
+                  </div>
                 </div>
               </div>
-
-              <div className="cta-row">
-                <button className="primary-btn" onClick={() => setPage("upload")}>
-                  Upload my documents →
-                </button>
-                <button className="ghost-btn" onClick={() => setPage("wizard")}>
-                  Answer all questions manually
-                </button>
-              </div>
-
-              <div className="cta-row" style={{ marginTop: 0 }}>
-                <label className="ghost-btn" style={{ fontSize: 14 }}>
-                  Resume from saved file
-                  <input
-                    type="file"
-                    accept=".json,application/json"
-                    hidden
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleImport(file);
-                    }}
-                  />
-                </label>
-              </div>
-
-              <p className="privacy-line">
-                Documents are processed for extraction only — never stored. Progress stays on your device.
-              </p>
             </div>
           </section>
         </main>
       )}
 
+      {page === "login" && (
+        <LoginScreen onSuccess={handleLoginSuccess} onBack={() => setPage("landing")} />
+      )}
+
       {page === "upload" && (
         <UploadScreen
+          authToken={authToken || ""}
           onExtracted={handleExtracted}
           onSkip={() => setPage("wizard")}
           onBack={() => setPage("landing")}
@@ -273,6 +357,47 @@ export default function App() {
           onConfirm={handleConfirm}
           onBack={() => setPage("upload")}
         />
+      )}
+
+      {page === "form-peek" && claimData && (
+        <main className="review-layout">
+          <aside className="review-panel no-print">
+            <div className="review-card">
+              <div className="eyebrow">Extraction complete</div>
+              <div className="peek-stat">
+                {Object.keys(extractedData || {}).filter(k => k in EXTRACTED_FIELD_LABELS).length}
+              </div>
+              <div className="peek-stat-sub">fields filled from your documents</div>
+
+              {extractedData && (
+                <div className="peek-filled-list">
+                  {Object.keys(extractedData)
+                    .filter(k => k in EXTRACTED_FIELD_LABELS)
+                    .map(k => (
+                      <span key={k} className="peek-field-chip">
+                        {EXTRACTED_FIELD_LABELS[k as keyof ClaimData]}
+                      </span>
+                    ))}
+                </div>
+              )}
+
+              <p className="muted" style={{ fontSize: 14, marginTop: 14 }}>
+                Verify the highlighted entries, then answer a few remaining questions. Takes under 3 minutes.
+              </p>
+
+              <div className="review-actions">
+                <button className="primary-btn" onClick={() => setPage("wizard")}>
+                  Fill remaining details
+                </button>
+                <button className="ghost-btn" onClick={() => setPage("upload")}>Back to upload</button>
+              </div>
+            </div>
+          </aside>
+
+          <section className="preview-stage">
+            <FormRenderer data={claimData} />
+          </section>
+        </main>
       )}
 
       {page === "wizard" && (
@@ -292,23 +417,30 @@ export default function App() {
         <main className="review-layout">
           <aside className="review-panel no-print">
             <div className="review-card">
-              <div className="eyebrow">Review</div>
-              <h2>Your claim is ready to preview</h2>
+              <div className="eyebrow">Ready to submit</div>
+              <h2>Your form is filled</h2>
               <p className="muted">
-                Part A is prefilled from your answers. Part B remains blank for the hospital.
+                Part A is complete. Part B is pre-filled from your discharge summary for the hospital to verify and sign.
               </p>
 
               <div className="review-actions">
+                <button
+                  className="primary-btn"
+                  onClick={handleDownloadFilledPdf}
+                  disabled={downloadingPdf}
+                >
+                  {downloadingPdf ? "Generating..." : "Download filled PDF"}
+                </button>
+                <button className="ghost-btn" onClick={() => window.print()}>
+                  Print / Save as PDF
+                </button>
                 <button className="ghost-btn" onClick={() => setPage("wizard")}>
                   Edit answers
-                </button>
-                <button className="primary-btn" onClick={handlePrint}>
-                  Print / Save as PDF
                 </button>
               </div>
 
               <p className="review-note">
-                For best output, use portrait orientation and default scale.
+                The hospital fills and signs Part B before submission.
               </p>
             </div>
           </aside>
