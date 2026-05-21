@@ -1,4 +1,23 @@
-import { verifyToken } from "./auth";
+import crypto from "crypto";
+
+const _SECRET = process.env.JWT_SECRET || "claimease-dev-secret-change-in-prod";
+
+function verifyToken(token?: string): boolean {
+  if (!token) return false;
+  try {
+    const dot = token.lastIndexOf(".");
+    if (dot < 0) return false;
+    const payloadB64 = token.slice(0, dot);
+    const sig = token.slice(dot + 1);
+    const payload = Buffer.from(payloadB64, "base64url").toString("utf-8");
+    const expected = crypto.createHmac("sha256", _SECRET).update(payload).digest("hex");
+    if (sig !== expected) return false;
+    const colon = payload.lastIndexOf(":");
+    return Date.now() <= parseInt(payload.slice(colon + 1), 10);
+  } catch {
+    return false;
+  }
+}
 
 const EXTRACTION_PROMPT = `You are extracting medical claim information from Indian hospital documents for an IRDAI reimbursement form.
 Analyze all provided documents (Final Bill, Discharge Summary, and/or TPA/Insurance Card) and extract the fields below.

@@ -6,21 +6,39 @@ const SECRET = process.env.JWT_SECRET || "claimease-dev-secret-change-in-prod";
 
 function loadUsers(): Map<string, string> {
   const map = new Map<string, string>();
-  try {
-    const filePath = path.join(process.cwd(), "config", "users.txt");
-    const lines = fs.readFileSync(filePath, "utf-8").split("\n");
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) continue;
-      const colon = trimmed.indexOf(":");
+
+  // Try ALLOWED_USERS env var first (most reliable on Vercel)
+  // Format: "VIJAY:12345,ALICE:pass2"
+  const envUsers = process.env.ALLOWED_USERS;
+  if (envUsers) {
+    for (const entry of envUsers.split(",")) {
+      const colon = entry.indexOf(":");
       if (colon < 1) continue;
-      const user = trimmed.slice(0, colon).trim().toUpperCase();
-      const pass = trimmed.slice(colon + 1).trim();
-      if (user && pass) map.set(user, pass);
+      map.set(entry.slice(0, colon).trim().toUpperCase(), entry.slice(colon + 1).trim());
     }
-  } catch {
-    // file missing in dev — fall through with empty map
+    if (map.size > 0) return map;
   }
+
+  // Fall back to config/users.txt (local dev and Vercel if file is bundled)
+  const candidates = [
+    path.join(process.cwd(), "config", "users.txt"),
+    path.join(__dirname, "..", "config", "users.txt"),
+    path.join(__dirname, "../../config", "users.txt"),
+  ];
+  for (const filePath of candidates) {
+    try {
+      const lines = fs.readFileSync(filePath, "utf-8").split("\n");
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) continue;
+        const colon = trimmed.indexOf(":");
+        if (colon < 1) continue;
+        map.set(trimmed.slice(0, colon).trim().toUpperCase(), trimmed.slice(colon + 1).trim());
+      }
+      if (map.size > 0) return map;
+    } catch { /* try next path */ }
+  }
+
   return map;
 }
 
