@@ -171,6 +171,14 @@ export default function App() {
     else setPage("login");
   };
 
+  const handleLogout = () => {
+    sessionStorage.removeItem("ce_auth");
+    setAuthToken(null);
+    setClaimData(null);
+    setExtractedData(null);
+    setPage("landing");
+  };
+
   const handleExport = () => {
     if (!claimData) return;
     const blob = new Blob([JSON.stringify(claimData, null, 2)], { type: "application/json" });
@@ -262,6 +270,11 @@ export default function App() {
           )}
           {showSaveAction && (
             <button className="ghost-btn" onClick={handleExport}>Save progress</button>
+          )}
+          {authToken && (
+            <button className="ghost-btn" style={{ color: "var(--muted)", fontSize: 14 }} onClick={handleLogout}>
+              Sign out
+            </button>
           )}
         </div>
       </header>
