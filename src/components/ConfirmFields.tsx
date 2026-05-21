@@ -12,15 +12,6 @@ const REASON_OPTIONS = ["Illness", "Injury", "Maternity"];
 const ROOM_OPTIONS = ["Day care", "Single occupancy", "Twin sharing", "3 or more beds"];
 const MEDICINE_OPTIONS = ["Allopathy", "Ayurveda", "Homeopathy", "Siddha", "Unani", "Naturopathy", "Other"];
 
-const STILL_NEEDED = [
-  "Policy number",
-  "Policyholder details",
-  "Insurance history",
-  "Pre/post hospitalisation expenses",
-  "Bank details",
-  "Declaration",
-];
-
 export default function ConfirmFields({ extracted, onConfirm, onBack }: Props) {
   const [fields, setFields] = useState<Partial<ClaimData>>({ ...extracted });
   const set = (key: keyof ClaimData, value: any) => setFields((prev) => ({ ...prev, [key]: value }));
@@ -32,23 +23,44 @@ export default function ConfirmFields({ extracted, onConfirm, onBack }: Props) {
     <div className="main-stage">
       <div className="confirm-screen">
         <div className="confirm-header">
-          <div className="eyebrow">Step 2 — Review extracted data</div>
+          <div className="eyebrow">Review what we found</div>
           <h1>
-            Here's what we found&nbsp;<span className="ai-badge">AI</span>
+            AI extracted {extractedCount} field{extractedCount !== 1 ? "s" : ""} <span className="ai-badge">AI</span>
           </h1>
           {extractedCount > 0 ? (
             <p>
-              We extracted <strong>{extractedCount} fields</strong> from your documents.
-              Review and edit anything that looks wrong, then continue.
+              Check each value below. Edit anything that looks wrong before continuing.
             </p>
           ) : (
             <p>
-              We couldn't confidently extract data from those documents. You can still
-              continue — the wizard will ask you everything step by step.
+              We could not confidently read data from those documents. You can still continue and fill everything manually.
             </p>
           )}
         </div>
 
+        {/* Insurance / TPA card */}
+        {has("insurerName", "tpaName", "policyNumber", "memberId", "sumInsured") && (
+          <div className="confirm-group">
+            <div className="confirm-group-title">Insurance & policy</div>
+            {fields.insurerName !== undefined && (
+              <ConfirmRow label="Insurance company" value={fields.insurerName || ""} onChange={(v) => set("insurerName", v)} />
+            )}
+            {fields.tpaName !== undefined && (
+              <ConfirmRow label="TPA name" value={fields.tpaName || ""} onChange={(v) => set("tpaName", v)} />
+            )}
+            {fields.policyNumber !== undefined && (
+              <ConfirmRow label="Policy number" value={fields.policyNumber || ""} onChange={(v) => set("policyNumber", v)} />
+            )}
+            {fields.memberId !== undefined && (
+              <ConfirmRow label="Member / card ID" value={fields.memberId || ""} onChange={(v) => set("memberId", v)} />
+            )}
+            {fields.sumInsured !== undefined && (
+              <ConfirmRow label="Sum insured (₹)" value={fields.sumInsured || ""} onChange={(v) => set("sumInsured", v)} />
+            )}
+          </div>
+        )}
+
+        {/* Patient */}
         {has("patientName", "gender", "patientDob") && (
           <div className="confirm-group">
             <div className="confirm-group-title">Patient</div>
@@ -64,9 +76,10 @@ export default function ConfirmFields({ extracted, onConfirm, onBack }: Props) {
           </div>
         )}
 
+        {/* Hospital stay */}
         {has("hospitalName", "admissionDate", "dischargeDate", "admissionTime", "dischargeTime", "hospitalizationReason", "roomCategory", "systemOfMedicine") && (
           <div className="confirm-group">
-            <div className="confirm-group-title">Hospital Stay</div>
+            <div className="confirm-group-title">Hospital stay</div>
             {fields.hospitalName !== undefined && (
               <ConfirmRow label="Hospital name" value={fields.hospitalName || ""} onChange={(v) => set("hospitalName", v)} />
             )}
@@ -99,9 +112,10 @@ export default function ConfirmFields({ extracted, onConfirm, onBack }: Props) {
           </div>
         )}
 
+        {/* Billing */}
         {fields.hospitalExpenses !== undefined && (
           <div className="confirm-group">
-            <div className="confirm-group-title">Financial</div>
+            <div className="confirm-group-title">Bill amount</div>
             <ConfirmRow
               label="Total hospital bill (₹)"
               value={fields.hospitalExpenses || ""}
@@ -110,21 +124,36 @@ export default function ConfirmFields({ extracted, onConfirm, onBack }: Props) {
           </div>
         )}
 
-        <div className="still-needed-box">
-          <h3>Still to fill after this</h3>
-          <ul className="still-needed-list">
-            {STILL_NEEDED.map((item) => (
-              <li key={item} className="still-needed-tag">{item}</li>
-            ))}
-          </ul>
-        </div>
+        {/* Part B clinical — extracted for hospital section */}
+        {has("treatingDoctorName", "diagnosisText", "diagnosisIcdCode", "procedureName", "procedureIcdCode") && (
+          <div className="confirm-group">
+            <div className="confirm-group-title">
+              Clinical details <span style={{ fontWeight: 400, fontSize: 11, color: "var(--muted)", textTransform: "none", letterSpacing: 0 }}>(pre-fills the hospital section of the form)</span>
+            </div>
+            {fields.treatingDoctorName !== undefined && (
+              <ConfirmRow label="Treating doctor" value={fields.treatingDoctorName || ""} onChange={(v) => set("treatingDoctorName", v)} />
+            )}
+            {fields.diagnosisText !== undefined && (
+              <ConfirmRow label="Diagnosis" value={fields.diagnosisText || ""} onChange={(v) => set("diagnosisText", v)} />
+            )}
+            {fields.diagnosisIcdCode !== undefined && (
+              <ConfirmRow label="ICD-10 code" value={fields.diagnosisIcdCode || ""} onChange={(v) => set("diagnosisIcdCode", v)} />
+            )}
+            {fields.procedureName !== undefined && (
+              <ConfirmRow label="Procedure / surgery" value={fields.procedureName || ""} onChange={(v) => set("procedureName", v)} />
+            )}
+            {fields.procedureIcdCode !== undefined && (
+              <ConfirmRow label="Procedure code" value={fields.procedureIcdCode || ""} onChange={(v) => set("procedureIcdCode", v)} />
+            )}
+          </div>
+        )}
 
         <div className="confirm-actions">
           <button className="primary-btn" onClick={() => onConfirm(fields)}>
-            Looks good — continue to remaining questions →
+            Looks good, continue
           </button>
           <button className="ghost-btn" onClick={onBack}>
-            ← Re-upload documents
+            Back to upload
           </button>
         </div>
       </div>

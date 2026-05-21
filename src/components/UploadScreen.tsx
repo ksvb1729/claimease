@@ -169,10 +169,10 @@ export default function UploadScreen({ authToken, onExtracted, onSkip, onBack }:
     <div className="main-stage">
       <div className="upload-screen">
         <div className="upload-intro">
-          <div className="eyebrow">Step 1 of 3</div>
-          <h1>Upload your documents</h1>
+          <div className="eyebrow">Upload documents</div>
+          <h1>Let AI read your documents</h1>
           <p>
-            Add as many as you have. More documents mean more fields filled automatically.
+            Add as many as you have. The more you upload, the more we can fill in for you automatically.
           </p>
         </div>
 

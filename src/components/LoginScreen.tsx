@@ -42,7 +42,7 @@ export default function LoginScreen({ onSuccess, onBack }: Props) {
           <div className="eyebrow">ClaimEase</div>
           <h1 className="login-title">Sign in to continue</h1>
           <p className="login-sub">
-            ClaimEase is currently in limited access. Enter your credentials to proceed.
+            This is an early-access tool. Sign in with the credentials you were given to get started.
           </p>
 
           <form className="login-form" onSubmit={handleSubmit}>

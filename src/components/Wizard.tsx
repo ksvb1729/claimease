@@ -34,8 +34,12 @@ const SECTIONS: SectionDef[] = [
     key: "policyholder", title: "Policy & contact details", sub: "Fill exactly as on your policy document",
     fields: [
       { key: "policyholderName", label: "Policyholder full name", type: "text", required: true, span: "full" },
+      { key: "insurerName", label: "Insurance company name", type: "text", span: "half" },
+      { key: "tpaName", label: "TPA name", type: "text", span: "half" },
       { key: "policyNumber", label: "Policy number", type: "text", required: true, span: "half" },
-      { key: "tpaId", label: "TPA ID (if any)", type: "text", span: "half" },
+      { key: "memberId", label: "Member / card ID", type: "text", span: "half" },
+      { key: "tpaId", label: "TPA code (on policy)", type: "text", span: "half" },
+      { key: "sumInsured", label: "Sum insured (₹)", type: "text", span: "half" },
       { key: "phone", label: "Phone", type: "text", span: "half" },
       { key: "email", label: "Email", type: "text", span: "half" },
       { key: "firstInsuranceStart", label: "Health insurance start date", type: "date", span: "half" },
@@ -75,7 +79,7 @@ const SECTIONS: SectionDef[] = [
     ],
   },
   {
-    key: "hospital", title: "Hospital stay", sub: "Most fields below are pre-filled from your documents — verify and adjust if needed",
+    key: "hospital", title: "Hospital stay", sub: "These fields are pre-filled from your documents. Verify and correct if anything looks off.",
     fields: [
       { key: "hospitalizationReason", label: "Reason for hospitalization", type: "chips", options: ["Illness","Injury","Maternity"], span: "full" },
       { key: "diseaseOrInjuryDate", label: "Date illness / injury started", type: "date", span: "half" },
@@ -93,7 +97,7 @@ const SECTIONS: SectionDef[] = [
     ],
   },
   {
-    key: "expenses", title: "Claim expenses", sub: "Enter amounts in ₹ — use 0 if not applicable",
+    key: "expenses", title: "Claim expenses", sub: "Enter amounts in rupees. Use 0 if something does not apply to your claim.",
     fields: [
       { key: "hospitalExpenses", label: "Total hospital bill (₹)", type: "text", required: true, span: "half" },
       { key: "hadPreExpenses", label: "Pre-admission expenses?", type: "yn", span: "half" },
@@ -245,7 +249,7 @@ export default function Wizard({ initialData, onSave, onComplete }: WizardProps)
 
         <div className="question-actions no-print">
           <button className="ghost-btn" onClick={handleBack} disabled={sectionIndex === 0}>Back</button>
-          <button className="primary-btn" onClick={handleNext}>{isLast ? "Generate form" : "Next →"}</button>
+          <button className="primary-btn" onClick={handleNext}>{isLast ? "Preview my claim form" : "Next"}</button>
         </div>
       </div>
     </div>

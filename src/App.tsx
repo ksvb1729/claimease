@@ -395,7 +395,7 @@ export default function App() {
               )}
 
               <p className="muted" style={{ fontSize: 14, marginTop: 14 }}>
-                Verify the highlighted entries, then answer a few remaining questions. Takes under 3 minutes.
+                Review the pre-filled values, then answer a few remaining questions. Takes under 3 minutes.
               </p>
 
               <div className="review-actions">
@@ -431,9 +431,9 @@ export default function App() {
           <aside className="review-panel no-print">
             <div className="review-card">
               <div className="eyebrow">Ready to submit</div>
-              <h2>Your form is filled</h2>
+              <h2>Your claim form is ready</h2>
               <p className="muted">
-                Part A is complete. Part B is pre-filled from your discharge summary for the hospital to verify and sign.
+                Your section is complete. We have also pre-filled the hospital section using your discharge summary so the doctor has less to write. They just need to verify and sign it.
               </p>
 
               <div className="review-actions">
