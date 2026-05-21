@@ -112,6 +112,30 @@ export default function ConfirmFields({ extracted, onConfirm, onBack }: Props) {
           </div>
         )}
 
+        {/* Hospital contact — pre-fills Part B */}
+        {has("hospitalAddress", "hospitalPhone", "hospitalEmail", "hospitalRegNo", "hospitalPan") && (
+          <div className="confirm-group">
+            <div className="confirm-group-title">
+              Hospital contact <span style={{ fontWeight: 400, fontSize: 11, color: "var(--muted)", textTransform: "none", letterSpacing: 0 }}>(pre-fills hospital's section)</span>
+            </div>
+            {fields.hospitalAddress !== undefined && (
+              <ConfirmRow label="Hospital address" value={fields.hospitalAddress || ""} onChange={(v) => set("hospitalAddress", v)} />
+            )}
+            {fields.hospitalPhone !== undefined && (
+              <ConfirmRow label="Hospital phone" value={fields.hospitalPhone || ""} onChange={(v) => set("hospitalPhone", v)} />
+            )}
+            {fields.hospitalEmail !== undefined && (
+              <ConfirmRow label="Hospital email" value={fields.hospitalEmail || ""} onChange={(v) => set("hospitalEmail", v)} />
+            )}
+            {fields.hospitalRegNo !== undefined && (
+              <ConfirmRow label="Registration no." value={fields.hospitalRegNo || ""} onChange={(v) => set("hospitalRegNo", v)} />
+            )}
+            {fields.hospitalPan !== undefined && (
+              <ConfirmRow label="Hospital PAN / GST" value={fields.hospitalPan || ""} onChange={(v) => set("hospitalPan", v)} />
+            )}
+          </div>
+        )}
+
         {/* Billing */}
         {fields.hospitalExpenses !== undefined && (
           <div className="confirm-group">
@@ -125,7 +149,7 @@ export default function ConfirmFields({ extracted, onConfirm, onBack }: Props) {
         )}
 
         {/* Part B clinical — extracted for hospital section */}
-        {has("treatingDoctorName", "diagnosisText", "diagnosisIcdCode", "procedureName", "procedureIcdCode") && (
+        {has("treatingDoctorName", "treatingDoctorQualification", "diagnosisText", "diagnosisIcdCode", "procedureName", "procedureIcdCode", "procedureDate", "isPreExistingCondition") && (
           <div className="confirm-group">
             <div className="confirm-group-title">
               Clinical details <span style={{ fontWeight: 400, fontSize: 11, color: "var(--muted)", textTransform: "none", letterSpacing: 0 }}>(pre-fills the hospital section of the form)</span>
@@ -144,6 +168,20 @@ export default function ConfirmFields({ extracted, onConfirm, onBack }: Props) {
             )}
             {fields.procedureIcdCode !== undefined && (
               <ConfirmRow label="Procedure code" value={fields.procedureIcdCode || ""} onChange={(v) => set("procedureIcdCode", v)} />
+            )}
+            {fields.treatingDoctorQualification !== undefined && (
+              <ConfirmRow label="Doctor qualification" value={fields.treatingDoctorQualification || ""} onChange={(v) => set("treatingDoctorQualification", v)} />
+            )}
+            {fields.procedureDate !== undefined && (
+              <ConfirmRow label="Procedure date" value={fields.procedureDate || ""} type="date" onChange={(v) => set("procedureDate", v)} />
+            )}
+            {fields.isPreExistingCondition !== undefined && (
+              <ConfirmChips
+                label="Pre-existing condition?"
+                options={["Yes", "No"]}
+                value={fields.isPreExistingCondition || ""}
+                onChange={(v) => set("isPreExistingCondition", v)}
+              />
             )}
           </div>
         )}

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClaimEase — Claim Summary</title>
+  <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+  <style>
+    :root {
+      --bg: #f5f7fb; --panel: #fff; --text: #0f172a; --muted: #5b6475;
+      --line: #d9e0ea; --accent: #5b6cff; --green: #166534; --green-bg: #f0fdf4;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--text); }
+    .topbar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 14px 24px; display: flex; align-items: center; gap: 12px; }
+    .brand-mark { width: 34px; height: 34px; border-radius: 12px; background: linear-gradient(135deg, #111827, #5b6cff); color: #fff; font-weight: 700; font-size: 13px; display: grid; place-items: center; }
+    .brand-name { font-weight: 700; font-size: 16px; }
+    .page { max-width: 760px; margin: 0 auto; padding: 28px 20px 80px; }
+    h1 { margin: 0 0 6px; font-size: 28px; letter-spacing: -0.03em; }
+    .subtitle { font-size: 15px; color: var(--muted); margin: 0 0 28px; line-height: 1.6; }
+    .notice { background: var(--green-bg); border: 1px solid #86efac; border-radius: 14px; padding: 12px 16px; font-size: 13px; color: var(--green); margin-bottom: 24px; line-height: 1.6; }
+    .section { background: var(--panel); border-radius: 20px; border: 1px solid var(--line); padding: 20px 22px; margin-bottom: 16px; }
+    .section-title { font-size: 11px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: var(--accent); margin-bottom: 14px; }
+    .row { display: grid; grid-template-columns: 180px 1fr; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+    .row:last-child { border-bottom: none; padding-bottom: 0; }
+    .row-label { font-weight: 600; color: var(--muted); font-size: 13px; }
+    .row-value { color: var(--text); word-break: break-word; }
+    .error-box { background: #fef2f2; border: 1px solid #fca5a5; border-radius: 14px; padding: 20px; color: #991b1b; font-size: 15px; text-align: center; }
+    .partial-note { background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 10px 14px; font-size: 13px; color: #92400e; margin-bottom: 20px; }
+    .footer { text-align: center; font-size: 13px; color: var(--muted); margin-top: 40px; }
+    @media (max-width: 480px) { .row { grid-template-columns: 1fr; gap: 3px; } }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand-mark">CE</div>
+    <div class="brand-name">ClaimEase</div>
+  </div>
+  <div class="page">
+    <div id="content"><p style="color:#5b6475;text-align:center;margin-top:60px">Loading…</p></div>
+  </div>
+
+  <script>
+    const LABELS = {
+      pol:"Policy number", ins:"Insurance company", tpn:"TPA name", mid:"Member / card ID",
+      si:"Sum insured (₹)", tpa:"TPA code",
+      phn:"Policyholder name", ptn:"Patient name", gen:"Gender", ptd:"Date of birth", occ:"Occupation",
+      ph:"Phone", em:"Email", rel:"Relationship to policyholder",
+      sad:"Same address?",
+      pa1:"Policyholder address", pcy:"Policyholder city", pst:"Policyholder state", ppn:"Policyholder PIN",
+      aa1:"Patient address", acy:"Patient city", ast:"Patient state", apn:"Patient PIN",
+      coc:"Other insurance cover?", fis:"First insurance start", ccn:"Other insurer name",
+      cpn:"Other policy no.", csi:"Other sum insured", h4y:"Hospitalized in last 4 yrs?",
+      lhd:"Last hospitalization date", lhn:"Last diagnosis", poc:"Previous other cover?",
+      pon:"Previous insurer",
+      hos:"Hospital name", had:"Hospital address", hph:"Hospital phone",
+      hem:"Hospital email", hrn:"Hospital reg no", hpn:"Hospital PAN / GST",
+      adt:"Admission date", atm:"Admission time", ddt:"Discharge date", dtm:"Discharge time",
+      hrs:"Hospitalization reason", rmc:"Room category", som:"System of medicine",
+      did:"Disease / injury date", inc:"Injury cause", mll:"Medico-legal?",
+      rtp:"Reported to police?", fir:"FIR attached?",
+      hex:"Hospital bill (₹)", hpe:"Pre-admission expenses?", pre:"Pre-admission amount (₹)",
+      hpo:"Post-discharge expenses?", pos:"Post-discharge amount (₹)",
+      hcu:"Health checkup cost (₹)", amb:"Ambulance charges (₹)", oca:"Other claim amount (₹)",
+      phdys:"Pre-hospitalization days", podys:"Post-hospitalization days",
+      dom:"Domiciliary hospitalization?",
+      tdn:"Treating doctor", tdq:"Doctor qualification",
+      dxt:"Diagnosis", dxi:"Diagnosis ICD-10 code",
+      prc:"Procedure / surgery", pri:"Procedure code", prd:"Procedure date",
+      pex:"Pre-existing condition?",
+      hcb:"Cash benefits?", hdc:"Hospital daily cash (₹)", srg:"Surgical cash (₹)",
+      cil:"Critical illness benefit (₹)", cnv:"Convalescence (₹)",
+      ban:"Account number", bnb:"Bank & branch", ifs:"IFSC", pan:"PAN",
+      cpy:"Cheque payable to", pyt:"Payee type",
+      dpl:"Declaration place", dd:"Declaration date",
+    };
+
+    const SECTION_KEYS = [
+      { title: "Policy & Insurer", keys: ["pol","ins","tpn","mid","si","tpa"] },
+      { title: "Policyholder", keys: ["phn","ph","em","pa1","pcy","pst","ppn"] },
+      { title: "Patient", keys: ["ptn","gen","ptd","occ","rel","aa1","acy","ast","apn"] },
+      { title: "Hospital & Stay", keys: ["hos","had","hph","hem","hrn","hpn","adt","atm","ddt","dtm","hrs","rmc","som","did"] },
+      { title: "Clinical Details", keys: ["tdn","tdq","dxt","dxi","prc","pri","prd","pex"] },
+      { title: "Claim Amounts", keys: ["hex","pre","pos","hcu","amb","oca","phdys","podys","hdc","srg","cil","cnv"] },
+      { title: "Bank & Payment", keys: ["ban","bnb","ifs","cpy","pyt","pan","dpl","dd"] },
+      { title: "Insurance History", keys: ["coc","fis","ccn","cpn","csi","h4y","lhd","lhn","poc","pon"] },
+    ];
+
+    function render(claimData, isPartial) {
+      const content = document.getElementById("content");
+      let html = `
+        <h1>Claim Summary</h1>
+        <p class="subtitle">Scanned from ClaimEase QR code on the printed claim form.</p>
+        <div class="notice">This is a digital summary for reference. The signed printed form is the official submission document.</div>
+      `;
+      if (isPartial) {
+        html += `<div class="partial-note">This QR contains a summary of key fields. The printed form has complete information.</div>`;
+      }
+
+      for (const section of SECTION_KEYS) {
+        const rows = section.keys
+          .filter(k => claimData[k] !== undefined && claimData[k] !== null && claimData[k] !== "")
+          .map(k => `<div class="row"><span class="row-label">${LABELS[k] || k}</span><span class="row-value">${String(claimData[k])}</span></div>`);
+        if (rows.length === 0) continue;
+        html += `<div class="section"><div class="section-title">${section.title}</div>${rows.join("")}</div>`;
+      }
+
+      html += `<div class="footer">Generated by ClaimEase &nbsp;·&nbsp; For any corrections, refer to the signed printed form.</div>`;
+      content.innerHTML = html;
+    }
+
+    function showError(msg) {
+      document.getElementById("content").innerHTML = `
+        <div class="error-box">
+          <p style="margin:0 0 8px;font-weight:700">Could not read QR data</p>
+          <p style="margin:0;font-size:14px">${msg}</p>
+        </div>`;
+    }
+
+    (function init() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const d = params.get("d");
+        if (!d) { showError("No data found in URL. Please scan the QR code again."); return; }
+        const decompressed = LZString.decompressFromEncodedURIComponent(d);
+        if (!decompressed) { showError("QR data could not be decompressed. It may be corrupted or from an older version."); return; }
+        const parsed = JSON.parse(decompressed);
+        const claimData = parsed.data || parsed;
+        render(claimData, !!parsed.partial);
+      } catch (e) {
+        showError("An error occurred reading the QR data: " + (e.message || e));
+      }
+    })();
+  </script>
+</body>
+</html>

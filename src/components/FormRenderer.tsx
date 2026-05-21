@@ -78,21 +78,32 @@ function compactClaimData(data: ClaimData): Record<string, unknown> {
   return compact;
 }
 
-const QR_THRESHOLD = 1400; // chars — stay well under QR binary capacity
+const QR_MAX_URL = 1200;
 
-function buildQrPayloads(data: ClaimData): string[] {
-  const full = JSON.stringify({ v: 5, data: compactClaimData(data) });
-  const compressed = LZString.compressToEncodedURIComponent(full);
-  if (compressed.length <= QR_THRESHOLD) return [compressed];
-  // Split into two halves
-  const mid = Math.ceil(compressed.length / 2);
-  return [
-    LZString.compressToEncodedURIComponent(JSON.stringify({ v: 5, part: 1, of: 2, chunk: compressed.slice(0, mid) })),
-    LZString.compressToEncodedURIComponent(JSON.stringify({ v: 5, part: 2, of: 2, chunk: compressed.slice(mid) })),
+function buildKeyPayload(data: ClaimData): Record<string, unknown> {
+  const entries: Array<[string, unknown]> = [
+    ["pol", data.policyNumber], ["ins", data.insurerName], ["tpn", data.tpaName], ["mid", data.memberId],
+    ["phn", data.policyholderName], ["ptn", data.patientName], ["gen", data.gender], ["ptd", data.patientDob],
+    ["hos", data.hospitalName], ["adt", data.admissionDate], ["ddt", data.dischargeDate],
+    ["hrs", data.hospitalizationReason], ["hex", data.hospitalExpenses],
+    ["dxt", data.diagnosisText], ["dxi", data.diagnosisIcdCode],
+    ["prc", data.procedureName], ["tdn", data.treatingDoctorName],
   ];
+  return Object.fromEntries(entries.filter(([, v]) => v !== undefined && v !== null && v !== ""));
 }
 
-function Text({ x, y, w, text, size = 6.1, bold = false, align = "left", boxed = false }: {
+function buildQrPayloads(data: ClaimData): string[] {
+  const base = window.location.origin;
+  const full = JSON.stringify({ v: 5, data: compactClaimData(data) });
+  const compressed = LZString.compressToEncodedURIComponent(full);
+  const url = `${base}/decode?d=${compressed}`;
+  if (url.length <= QR_MAX_URL) return [url];
+  // Payload too large — fall back to key fields only
+  const keyCompressed = LZString.compressToEncodedURIComponent(JSON.stringify({ v: 5, partial: true, data: buildKeyPayload(data) }));
+  return [`${base}/decode?d=${keyCompressed}`];
+}
+
+function Text({ x, y, w, text, size = 8, bold = false, align = "left", boxed = false }: {
   x: number; y: number; w?: number; text?: string; size?: number;
   bold?: boolean; align?: "left" | "center" | "right"; boxed?: boolean;
 }) {
@@ -101,7 +112,7 @@ function Text({ x, y, w, text, size = 6.1, bold = false, align = "left", boxed =
   return (
     <div className="pdf-text" style={{
       left: `${x}%`, top: `${y}%`, width: w ? `${w}%` : undefined,
-      fontSize: `${boxed ? 6.4 : size}px`, fontWeight: bold ? 700 : 400, textAlign: align,
+      fontSize: `${boxed ? 7 : size}px`, fontWeight: bold ? 700 : 400, textAlign: align,
       letterSpacing: boxed ? "1.6px" : "0px",
       fontFamily: boxed ? "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" : undefined,
       whiteSpace: "nowrap",
@@ -114,7 +125,8 @@ function QrBlock({ payloads }: { payloads: string[] }) {
     <div className="page-qr-wrap">
       {payloads.map((qr, i) => (
         <div key={i} className="page-qr">
-          <QRCodeSVG value={qr} size={82} level="L" includeMargin={false} />
+          <QRCodeSVG value={qr} size={70} level="L" includeMargin={false} />
+          <div style={{ fontSize: 7, textAlign: "center", marginTop: 2, color: "#666", letterSpacing: "0.03em" }}>Scan to view</div>
           {payloads.length > 1 && (
             <div style={{ fontSize: 8, textAlign: "center", marginTop: 2, color: "#555" }}>
               {i + 1}/{payloads.length}
