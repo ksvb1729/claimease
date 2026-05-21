@@ -102,7 +102,22 @@ export type ClaimData = {
   declarationDate?: string;
 };
 
-type Page = "landing" | "upload" | "confirm-fields" | "wizard" | "review";
+type Page = "landing" | "upload" | "confirm-fields" | "form-peek" | "wizard" | "review";
+
+const EXTRACTED_FIELD_LABELS: Partial<Record<keyof ClaimData, string>> = {
+  patientName: "Patient name",
+  gender: "Gender",
+  patientDob: "Date of birth",
+  hospitalName: "Hospital name",
+  admissionDate: "Admission date",
+  admissionTime: "Admission time",
+  dischargeDate: "Discharge date",
+  dischargeTime: "Discharge time",
+  roomCategory: "Room category",
+  systemOfMedicine: "System of medicine",
+  hospitalizationReason: "Hospitalization reason",
+  hospitalExpenses: "Hospital bill total",
+};
 
 const STORAGE_FILE_NAME = "claimease-progress.json";
 
@@ -166,10 +181,10 @@ export default function App() {
       ...confirmed,
     };
     setClaimData(merged);
-    setPage("wizard");
+    setPage("form-peek");
   };
 
-  const showSaveAction = page !== "landing" && page !== "upload" && !!claimData;
+  const showSaveAction = page !== "landing" && page !== "upload" && page !== "form-peek" && !!claimData;
 
   return (
     <div className="app-shell">
@@ -273,6 +288,49 @@ export default function App() {
           onConfirm={handleConfirm}
           onBack={() => setPage("upload")}
         />
+      )}
+
+      {page === "form-peek" && claimData && (
+        <main className="review-layout">
+          <aside className="review-panel no-print">
+            <div className="review-card">
+              <div className="eyebrow">AI extraction complete</div>
+              <div className="peek-stat">
+                {Object.keys(extractedData || {}).filter(k => k in EXTRACTED_FIELD_LABELS).length}
+              </div>
+              <div className="peek-stat-sub">fields pre-filled from your documents</div>
+
+              {extractedData && (
+                <div className="peek-filled-list">
+                  {Object.keys(extractedData)
+                    .filter(k => k in EXTRACTED_FIELD_LABELS)
+                    .map(k => (
+                      <span key={k} className="peek-field-chip">
+                        {EXTRACTED_FIELD_LABELS[k as keyof ClaimData]}
+                      </span>
+                    ))}
+                </div>
+              )}
+
+              <p className="muted" style={{ fontSize: 14, marginTop: 14 }}>
+                Verify the highlighted entries, then answer the remaining questions — it takes under 3 minutes.
+              </p>
+
+              <div className="review-actions">
+                <button className="primary-btn" onClick={() => setPage("wizard")}>
+                  Fill remaining details →
+                </button>
+                <button className="ghost-btn" onClick={() => setPage("upload")}>
+                  ← Re-upload
+                </button>
+              </div>
+            </div>
+          </aside>
+
+          <section className="preview-stage">
+            <FormRenderer data={claimData} />
+          </section>
+        </main>
       )}
 
       {page === "wizard" && (
