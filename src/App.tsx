@@ -6,7 +6,6 @@ import UploadScreen from "./components/UploadScreen";
 import ConfirmFields from "./components/ConfirmFields";
 import LoginScreen from "./components/LoginScreen";
 import "./styles.css";
-import { generateFilledPdf } from "./utils/generateFilledPdf";
 import claimFormPdfUrl from "./assets/Claim_Form.pdf?url";
 
 export type BillRow = {
@@ -168,7 +167,6 @@ export default function App() {
   const [claimData, setClaimData] = useState<ClaimData | null>(null);
   const [extractedData, setExtractedData] = useState<Partial<ClaimData> | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(() => sessionStorage.getItem("ce_auth"));
-  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   const handleLoginSuccess = (token: string) => {
     sessionStorage.setItem("ce_auth", token);
@@ -212,26 +210,6 @@ export default function App() {
       }
     };
     reader.readAsText(file);
-  };
-
-  const handleDownloadFilledPdf = async () => {
-    if (!claimData) return;
-    setDownloadingPdf(true);
-    try {
-      const bytes = await generateFilledPdf(claimData);
-      const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "ClaimEase-filled-form.pdf";
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("PDF generation failed:", err);
-      alert("Could not generate PDF. Try printing to PDF instead.");
-    } finally {
-      setDownloadingPdf(false);
-    }
   };
 
   const handleExtracted = (data: Partial<ClaimData>) => {
@@ -447,15 +425,8 @@ export default function App() {
               </p>
 
               <div className="review-actions">
-                <button
-                  className="primary-btn"
-                  onClick={handleDownloadFilledPdf}
-                  disabled={downloadingPdf}
-                >
-                  {downloadingPdf ? "Generating..." : "Download filled PDF"}
-                </button>
-                <button className="ghost-btn" onClick={() => window.print()}>
-                  Print / Save as PDF
+                <button className="primary-btn" onClick={() => window.print()}>
+                  Save as PDF
                 </button>
                 <button className="ghost-btn" onClick={() => setPage("wizard")}>
                   Edit answers
@@ -463,7 +434,10 @@ export default function App() {
               </div>
 
               <p className="review-note">
-                The hospital fills and signs Part B before submission.
+                Click "Save as PDF" → your browser's print dialog opens → choose "Save as PDF". The QR code on the form lets insurers scan and read all data digitally.
+              </p>
+              <p className="review-note" style={{ marginTop: 6 }}>
+                The hospital section is pre-filled from your documents for the doctor to verify and sign.
               </p>
             </div>
           </aside>

@@ -28,8 +28,9 @@ function calcAge(dob?: string) {
 const PW = 595, PH = 842;
 
 function cx(xPct: number) { return (xPct / 100) * PW; }
-// PDF y=0 is bottom; HTML y=0 is top — invert, then shift up by ~1% to account for text baseline
-function cy(yPct: number, fontSize = 9) { return PH - (yPct / 100) * PH + fontSize * 0.25; }
+// PDF y=0 is at page bottom; HTML top:Y% puts div top at Y% from page top.
+// Text baseline in HTML is ~fontSize*0.8 below div top, so subtract that.
+function cy(yPct: number, fontSize = 9) { return PH - (yPct / 100) * PH - fontSize * 0.8; }
 
 type DrawOpts = { size?: number; mono?: boolean };
 type DrawFn = (text: string | undefined, xPct: number, yPct: number, opts?: DrawOpts) => void;
