@@ -1,10 +1,12 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import LZString from "lz-string";
 import Wizard from "./components/Wizard";
-import FormRenderer from "./components/FormRenderer";
+import ClaimDataView from "./components/ClaimDataView";
 import UploadScreen from "./components/UploadScreen";
 import ConfirmFields from "./components/ConfirmFields";
 import LoginScreen from "./components/LoginScreen";
+import { fillClaimPdf, downloadPdf } from "./utils/fillClaimPdf";
 import "./styles.css";
 import claimFormPdfUrl from "./assets/Claim_Form.pdf?url";
 
@@ -164,11 +166,100 @@ const EXTRACTED_FIELD_LABELS: Partial<Record<keyof ClaimData, string>> = {
 
 const STORAGE_FILE_NAME = "claimease-progress.json";
 
+// Reverse-expand compact QR payload back to ClaimData keys
+const QR_KEY_MAP: Record<string, keyof ClaimData> = {
+  rel:"relationship", phn:"policyholderName", ptn:"patientName", pol:"policyNumber",
+  tpa:"tpaId", ptd:"patientDob", gen:"gender", occ:"occupation", ph:"phone", em:"email",
+  ins:"insurerName", tpn:"tpaName", mid:"memberId", si:"sumInsured",
+  coc:"currentOtherCover", fis:"firstInsuranceStart", ccn:"currentOtherCompanyName",
+  cpn:"currentOtherPolicyNo", csi:"currentOtherSumInsured",
+  h4y:"hospitalizedLastFourYears", lhd:"lastHospitalizationDate",
+  lhn:"lastHospitalizationDiagnosis", poc:"previousOtherCover", pon:"previousOtherCompanyName",
+  sad:"sameAddress", pa1:"policyholderAddress1", pcy:"policyholderCity",
+  pst:"policyholderState", ppn:"policyholderPin",
+  aa1:"patientAddress1", acy:"patientCity", ast:"patientState", apn:"patientPin",
+  hrs:"hospitalizationReason", did:"diseaseOrInjuryDate",
+  adt:"admissionDate", atm:"admissionTime", ddt:"dischargeDate", dtm:"dischargeTime",
+  hos:"hospitalName", had:"hospitalAddress", hph:"hospitalPhone",
+  hem:"hospitalEmail", hrn:"hospitalRegNo", hpn:"hospitalPan",
+  rmc:"roomCategory", som:"systemOfMedicine",
+  inc:"injuryCause", mll:"medicoLegal", rtp:"reportedToPolice", fir:"firAttached",
+  hpe:"hadPreExpenses", pre:"preExpenses", hpo:"hadPostExpenses", pos:"postExpenses",
+  hex:"hospitalExpenses", hcu:"healthCheckupCost", amb:"ambulanceCharges",
+  oca:"othersClaimAmount", phdys:"preHospitalizationDays", podys:"postHospitalizationDays",
+  dom:"hadDomiciliary", hcb:"hasCashBenefits", hdc:"hospitalDailyCash",
+  srg:"surgicalCash", cil:"criticalIllnessBenefit", cnv:"convalescence",
+  tdn:"treatingDoctorName", tdq:"treatingDoctorQualification",
+  dxt:"diagnosisText", dxi:"diagnosisIcdCode",
+  prc:"procedureName", pri:"procedureIcdCode", prd:"procedureDate",
+  pex:"isPreExistingCondition",
+  ban:"bankAccountNumber", bnb:"bankNameBranch", ifs:"ifsc",
+  cpy:"chequePayableTo", pyt:"payeeType", pan:"pan",
+  dpl:"declarationPlace", dd:"declarationDate",
+};
+
+function expandCompact(compact: Record<string, unknown>): Partial<ClaimData> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(compact)) {
+    const mapped = QR_KEY_MAP[k];
+    if (mapped) out[mapped] = v;
+  }
+  if (compact.docs) out.documents = compact.docs;
+  if (compact.bills) {
+    out.billRows = (compact.bills as Array<Record<string, string>>).map((b, i) => ({
+      id: String(i), billNo: b.n || "", date: b.d || "", issuedBy: b.b || "", towards: b.t || "", amount: b.a || "",
+    }));
+  }
+  return out as Partial<ClaimData>;
+}
+
 export default function App() {
   const [page, setPage] = useState<Page>("landing");
   const [claimData, setClaimData] = useState<ClaimData | null>(null);
   const [extractedData, setExtractedData] = useState<Partial<ClaimData> | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(() => sessionStorage.getItem("ce_auth"));
+  const [pdfBusy, setPdfBusy] = useState(false);
+
+  // Handle QR decode URL: /decode?d=<lz-compressed>
+  useEffect(() => {
+    if (window.location.pathname !== "/decode") return;
+    const params = new URLSearchParams(window.location.search);
+    const d = params.get("d");
+    if (!d) return;
+    try {
+      const json = LZString.decompressFromEncodedURIComponent(d);
+      if (!json) return;
+      const parsed = JSON.parse(json);
+      const raw = parsed.data || parsed;
+      const expanded = expandCompact(raw);
+      const merged: ClaimData = {
+        sameAddress: true, hadPreExpenses: "No", hadPostExpenses: "No",
+        hadDomiciliary: "No", hasCashBenefits: "No", currentOtherCover: "No",
+        hospitalizedLastFourYears: "No", previousOtherCover: "No",
+        healthCheckupCost: "0", ambulanceCharges: "0", othersClaimAmount: "0",
+        preHospitalizationDays: "0", postHospitalizationDays: "0",
+        payeeType: "Primary policyholder",
+        ...expanded,
+      };
+      setClaimData(merged);
+      setPage("review");
+      window.history.replaceState({}, "", "/");
+    } catch { /* bad payload — just show landing */ }
+  }, []);
+
+  const handleDownloadPdf = async () => {
+    if (!claimData || pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const bytes = await fillClaimPdf(claimData);
+      downloadPdf(bytes);
+    } catch (e) {
+      alert("Could not generate PDF. Please try again.");
+      console.error(e);
+    } finally {
+      setPdfBusy(false);
+    }
+  };
 
   const handleLoginSuccess = (token: string) => {
     sessionStorage.setItem("ce_auth", token);
@@ -385,7 +476,7 @@ export default function App() {
               )}
 
               <p className="muted" style={{ fontSize: 14, marginTop: 14 }}>
-                Review the pre-filled values, then answer a few remaining questions. Takes under 3 minutes.
+                Review the pre-filled values on the right, then answer the remaining questions.
               </p>
 
               <div className="review-actions">
@@ -398,7 +489,7 @@ export default function App() {
           </aside>
 
           <section className="preview-stage">
-            <FormRenderer data={claimData} />
+            <ClaimDataView data={claimData} />
           </section>
         </main>
       )}
@@ -423,12 +514,12 @@ export default function App() {
               <div className="eyebrow">Ready to submit</div>
               <h2>Your claim form is ready</h2>
               <p className="muted">
-                Your section is complete. We have also pre-filled the hospital section using your discharge summary so the doctor has less to write. They just need to verify and sign it.
+                Verify the data on the right. Then download the filled PDF — print it, sign it, and submit to your insurer.
               </p>
 
               <div className="review-actions">
-                <button className="primary-btn" onClick={() => window.print()}>
-                  Save as PDF
+                <button className="primary-btn" onClick={handleDownloadPdf} disabled={pdfBusy}>
+                  {pdfBusy ? "Generating PDF…" : "Download filled PDF"}
                 </button>
                 <button className="ghost-btn" onClick={() => setPage("wizard")}>
                   Edit answers
@@ -436,16 +527,13 @@ export default function App() {
               </div>
 
               <p className="review-note">
-                Click "Save as PDF" → your browser's print dialog opens → choose "Save as PDF". The QR code on the form lets insurers scan and read all data digitally.
-              </p>
-              <p className="review-note" style={{ marginTop: 6 }}>
-                The hospital section is pre-filled from your documents for the doctor to verify and sign.
+                The PDF is generated in your browser — your data never leaves your device. Part B (hospital section) is pre-filled from your documents for the doctor to verify and sign.
               </p>
             </div>
           </aside>
 
           <section className="preview-stage">
-            <FormRenderer data={claimData} />
+            <ClaimDataView data={claimData} />
           </section>
         </main>
       )}
