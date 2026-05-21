@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import type { BillRow, ClaimData } from "../App";
+import SignaturePad from "./SignaturePad";
 
 type WizardProps = {
   initialData: ClaimData | null;
@@ -246,6 +247,20 @@ export default function Wizard({ initialData, onSave, onComplete }: WizardProps)
             </div>
           )
         }
+
+        {section.key === "bank" && (
+          <div style={{ marginTop: 24, gridColumn: "1/-1" }}>
+            <label className="field-label" style={{ display: "block", marginBottom: 8 }}>
+              Signature <span style={{ color: "var(--muted)", fontWeight: 400, textTransform: "none" }}>— appears on the claim form</span>
+            </label>
+            <SignaturePad
+              textValue={form.signatureText}
+              imageValue={form.signatureDataUrl}
+              onChangeText={v => setValue("signatureText", v)}
+              onChangeImage={v => setValue("signatureDataUrl", v)}
+            />
+          </div>
+        )}
 
         <div className="question-actions no-print">
           <button className="ghost-btn" onClick={handleBack} disabled={sectionIndex === 0}>Back</button>

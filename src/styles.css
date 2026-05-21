@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap');
 
 :root {
   --bg: #f5f7fb;
@@ -1231,6 +1232,186 @@ img {
   text-transform: uppercase;
   margin-bottom: 8px;
   margin-top: 4px;
+}
+
+/* ── Signature Pad ── */
+.sig-pad {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  background: white;
+}
+
+.sig-mode-toggle {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+}
+
+.sig-mode-btn {
+  flex: 1;
+  padding: 10px 16px;
+  background: white;
+  border: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--muted);
+  transition: background 0.15s, color 0.15s;
+  border-radius: 0;
+}
+
+.sig-mode-btn:first-child {
+  border-right: 1px solid var(--line);
+}
+
+.sig-mode-btn.active {
+  background: var(--primary);
+  color: white;
+}
+
+.sig-type-area {
+  padding: 14px 16px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.sig-type-input {
+  flex: 1;
+  min-width: 140px;
+  padding: 10px 13px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fafafa;
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.sig-type-input:focus {
+  border-color: var(--primary-2);
+  box-shadow: 0 0 0 3px rgba(91, 108, 255, 0.08);
+}
+
+.sig-preview-box {
+  flex: 1;
+  min-width: 160px;
+  height: 56px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fafafa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  overflow: hidden;
+}
+
+.sig-preview-text {
+  font-family: 'Dancing Script', 'Brush Script MT', cursive;
+  font-size: 26px;
+  font-weight: 600;
+  color: #1a1a2e;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.sig-preview-placeholder {
+  font-family: 'Dancing Script', 'Brush Script MT', cursive;
+  font-size: 18px;
+  color: #9ca3af;
+  white-space: nowrap;
+}
+
+.sig-clear-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted);
+  padding: 6px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.sig-clear-btn:hover {
+  background: #f1f5f9;
+  color: var(--text);
+}
+
+.sig-dropzone {
+  margin: 14px 16px;
+  border: 2px dashed var(--primary-2);
+  border-radius: 14px;
+  padding: 28px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.sig-dropzone:hover {
+  background: var(--soft);
+}
+
+.sig-dropzone-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.sig-dropzone-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.sig-uploaded-box {
+  margin: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 2px dashed var(--primary-2);
+  border-radius: 14px;
+  padding: 14px 20px;
+}
+
+.sig-uploaded-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sig-uploaded-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sig-uploaded-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary-2);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.sig-remove-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 22px;
+  color: var(--muted);
+  line-height: 1;
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+
+.sig-remove-btn:hover {
+  background: #f1f5f9;
+  color: var(--text);
 }
 
 /* ── Form peek (post-extraction preview) ── */

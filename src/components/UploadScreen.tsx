@@ -12,13 +12,19 @@ type Props = {
 
 const ACCEPTED = ".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf";
 const MAX_BYTES = 10 * 1024 * 1024;
-const RATE_KEY = "ce_extractions";
+const RATE_KEY_PREFIX = "ce_extractions";
 const MAX_PER_DAY = 5;
 
-function getRateLimit() {
+function rateKey(authToken: string) {
+  // Token format: "username:timestamp:sig" — use username as the per-user key
+  const username = authToken.split(":")[0] || "anon";
+  return `${RATE_KEY_PREFIX}_${username}`;
+}
+
+function getRateLimit(authToken: string) {
   const today = new Date().toISOString().slice(0, 10);
   try {
-    const raw = localStorage.getItem(RATE_KEY);
+    const raw = localStorage.getItem(rateKey(authToken));
     const saved = raw ? JSON.parse(raw) : { date: "", count: 0 };
     if (saved.date !== today) return { ok: true, remaining: MAX_PER_DAY };
     return { ok: saved.count < MAX_PER_DAY, remaining: Math.max(0, MAX_PER_DAY - saved.count) };
@@ -27,13 +33,14 @@ function getRateLimit() {
   }
 }
 
-function incrementRateLimit() {
+function incrementRateLimit(authToken: string) {
   const today = new Date().toISOString().slice(0, 10);
+  const key = rateKey(authToken);
   try {
-    const raw = localStorage.getItem(RATE_KEY);
+    const raw = localStorage.getItem(key);
     const saved = raw ? JSON.parse(raw) : { date: today, count: 0 };
     const count = saved.date === today ? saved.count + 1 : 1;
-    localStorage.setItem(RATE_KEY, JSON.stringify({ date: today, count }));
+    localStorage.setItem(key, JSON.stringify({ date: today, count }));
   } catch { /* ignore */ }
 }
 
@@ -111,9 +118,9 @@ export default function UploadScreen({ authToken, onExtracted, onSkip, onBack }:
       setError("Upload at least one document to continue.");
       return;
     }
-    const rl = getRateLimit();
+    const rl = getRateLimit(authToken);
     if (!rl.ok) {
-      setError("You have used all " + MAX_PER_DAY + " daily extractions. Try again tomorrow, or fill manually.");
+      setError("You have used all " + MAX_PER_DAY + " daily extractions for your account. Try again tomorrow, or fill manually.");
       return;
     }
     setExtracting(true);
@@ -136,7 +143,7 @@ export default function UploadScreen({ authToken, onExtracted, onSkip, onBack }:
         throw new Error((err as any).error || "Extraction failed. Please try again.");
       }
       const { extracted } = await res.json();
-      incrementRateLimit();
+      incrementRateLimit(authToken);
       onExtracted(extracted);
     } catch (err: any) {
       setError(err.message || "Something went wrong. Please try again.");

@@ -113,6 +113,8 @@ export type ClaimData = {
 
   declarationPlace?: string;
   declarationDate?: string;
+  signatureText?: string;
+  signatureDataUrl?: string;
 
   // Part B — hospital / clinical (auto-extracted, verified by hospital)
   treatingDoctorName?: string;
