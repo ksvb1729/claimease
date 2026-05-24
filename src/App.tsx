@@ -1,12 +1,12 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import LZString from "lz-string";
 import Wizard from "./components/Wizard";
 import ClaimDataView from "./components/ClaimDataView";
+import IrdaiFormPrint from "./components/IrdaiFormPrint";
 import UploadScreen from "./components/UploadScreen";
 import ConfirmFields from "./components/ConfirmFields";
 import LoginScreen from "./components/LoginScreen";
-import { fillClaimPdf, downloadPdf } from "./utils/fillClaimPdf";
 import "./styles.css";
 import claimFormPdfUrl from "./assets/Claim_Form.pdf?url";
 
@@ -166,7 +166,6 @@ const EXTRACTED_FIELD_LABELS: Partial<Record<keyof ClaimData, string>> = {
 
 const STORAGE_FILE_NAME = "claimease-progress.json";
 
-// Reverse-expand compact QR payload back to ClaimData keys
 const QR_KEY_MAP: Record<string, keyof ClaimData> = {
   rel:"relationship", phn:"policyholderName", ptn:"patientName", pol:"policyNumber",
   tpa:"tpaId", ptd:"patientDob", gen:"gender", occ:"occupation", ph:"phone", em:"email",
@@ -218,7 +217,8 @@ export default function App() {
   const [claimData, setClaimData] = useState<ClaimData | null>(null);
   const [extractedData, setExtractedData] = useState<Partial<ClaimData> | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(() => sessionStorage.getItem("ce_auth"));
-  const [pdfBusy, setPdfBusy] = useState(false);
+  const [showPrint, setShowPrint] = useState(false);
+  const printRef = useRef(false);
 
   // Handle QR decode URL: /decode?d=<lz-compressed>
   useEffect(() => {
@@ -247,18 +247,21 @@ export default function App() {
     } catch { /* bad payload — just show landing */ }
   }, []);
 
-  const handleDownloadPdf = async () => {
-    if (!claimData || pdfBusy) return;
-    setPdfBusy(true);
-    try {
-      const bytes = await fillClaimPdf(claimData);
-      downloadPdf(bytes);
-    } catch (e) {
-      alert("Could not generate PDF. Please try again.");
-      console.error(e);
-    } finally {
-      setPdfBusy(false);
-    }
+  // afterprint: reset print overlay after dialog closes
+  useEffect(() => {
+    const handler = () => {
+      setShowPrint(false);
+      printRef.current = false;
+    };
+    window.addEventListener("afterprint", handler);
+    return () => window.removeEventListener("afterprint", handler);
+  }, []);
+
+  const handlePrintPdf = () => {
+    if (!claimData || printRef.current) return;
+    printRef.current = true;
+    setShowPrint(true);
+    setTimeout(() => window.print(), 300);
   };
 
   const handleLoginSuccess = (token: string) => {
@@ -335,6 +338,7 @@ export default function App() {
   const showSaveAction = page !== "landing" && page !== "upload" && page !== "login" && page !== "form-peek" && !!claimData;
 
   return (
+    <>
     <div className="app-shell">
       <header className="topbar no-print">
         <div className="brand">
@@ -518,8 +522,8 @@ export default function App() {
               </p>
 
               <div className="review-actions">
-                <button className="primary-btn" onClick={handleDownloadPdf} disabled={pdfBusy}>
-                  {pdfBusy ? "Generating PDF…" : "Download filled PDF"}
+                <button className="primary-btn" onClick={handlePrintPdf} disabled={showPrint}>
+                  {showPrint ? "Opening print dialog…" : "Print / Save as PDF"}
                 </button>
                 <button className="ghost-btn" onClick={() => setPage("wizard")}>
                   Edit answers
@@ -538,5 +542,13 @@ export default function App() {
         </main>
       )}
     </div>
+
+    {/* Print overlay — hidden on screen, shown only during print */}
+    {showPrint && claimData && (
+      <div className="irdai-print-only">
+        <IrdaiFormPrint data={claimData} />
+      </div>
+    )}
+    </>
   );
 }

@@ -791,6 +791,11 @@ img {
   }
 }
 
+/* Print overlay: hidden on screen, shown only when printing */
+.irdai-print-only {
+  display: none;
+}
+
 @media print {
   html,
   body,
@@ -800,34 +805,29 @@ img {
     print-color-adjust: exact;
   }
 
-  .no-print {
+  .app-shell {
     display: none !important;
   }
 
-  .app-shell,
-  .preview-stage,
-  .form-preview-wrap {
-    padding: 0;
-    margin: 0;
+  .irdai-print-only {
+    display: block !important;
   }
 
-  .review-layout {
-    display: block;
+  .irdai-form-wrap {
+    background: white;
     padding: 0;
-    margin: 0;
+    gap: 0;
   }
 
-  .a4-page {
-    width: 210mm;
-    height: 297mm;
-    margin: 0;
+  .irdai-page {
+    page-break-after: always;
     box-shadow: none;
-    break-after: page;
+    border: none;
   }
 
   @page {
     size: A4 portrait;
-    margin: 0;
+    margin: 6mm;
   }
 }
 
