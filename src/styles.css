@@ -796,6 +796,16 @@ img {
   display: none;
 }
 
+/* On-screen preview wrapper for the form */
+.irdai-form-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 24px;
+  background: #d0d0d0;
+}
+
 @media print {
   html,
   body,
@@ -803,6 +813,7 @@ img {
     background: white;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    color-adjust: exact;
   }
 
   .app-shell {
@@ -817,17 +828,25 @@ img {
     background: white;
     padding: 0;
     gap: 0;
+    display: block;
   }
 
+  /* Each page breaks cleanly — last page has no trailing break */
   .irdai-page {
+    border: none !important;
+    box-shadow: none !important;
     page-break-after: always;
-    box-shadow: none;
-    border: none;
+    break-after: page;
+  }
+
+  .irdai-page:last-child {
+    page-break-after: avoid;
+    break-after: avoid;
   }
 
   @page {
     size: A4 portrait;
-    margin: 6mm;
+    margin: 5mm 6mm;
   }
 }
 
