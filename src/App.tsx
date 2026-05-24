@@ -1,12 +1,13 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import LZString from "lz-string";
 import Wizard from "./components/Wizard";
-import FormRenderer from "./components/FormRenderer";
+import ClaimDataView from "./components/ClaimDataView";
+import IrdaiFormPrint from "./components/IrdaiFormPrint";
 import UploadScreen from "./components/UploadScreen";
 import ConfirmFields from "./components/ConfirmFields";
 import LoginScreen from "./components/LoginScreen";
 import "./styles.css";
-import { generateFilledPdf } from "./utils/generateFilledPdf";
 import claimFormPdfUrl from "./assets/Claim_Form.pdf?url";
 
 export type BillRow = {
@@ -114,6 +115,8 @@ export type ClaimData = {
 
   declarationPlace?: string;
   declarationDate?: string;
+  signatureText?: string;
+  signatureDataUrl?: string;
 
   // Part B — hospital / clinical (auto-extracted, verified by hospital)
   treatingDoctorName?: string;
@@ -153,12 +156,103 @@ const EXTRACTED_FIELD_LABELS: Partial<Record<keyof ClaimData, string>> = {
 
 const STORAGE_FILE_NAME = "claimease-progress.json";
 
+const QR_KEY_MAP: Record<string, keyof ClaimData> = {
+  rel:"relationship", phn:"policyholderName", ptn:"patientName", pol:"policyNumber",
+  tpa:"tpaId", ptd:"patientDob", gen:"gender", occ:"occupation", ph:"phone", em:"email",
+  ins:"insurerName", tpn:"tpaName", mid:"memberId", si:"sumInsured",
+  coc:"currentOtherCover", fis:"firstInsuranceStart", ccn:"currentOtherCompanyName",
+  cpn:"currentOtherPolicyNo", csi:"currentOtherSumInsured",
+  h4y:"hospitalizedLastFourYears", lhd:"lastHospitalizationDate",
+  lhn:"lastHospitalizationDiagnosis", poc:"previousOtherCover", pon:"previousOtherCompanyName",
+  sad:"sameAddress", pa1:"policyholderAddress1", pcy:"policyholderCity",
+  pst:"policyholderState", ppn:"policyholderPin",
+  aa1:"patientAddress1", acy:"patientCity", ast:"patientState", apn:"patientPin",
+  hrs:"hospitalizationReason", did:"diseaseOrInjuryDate",
+  adt:"admissionDate", atm:"admissionTime", ddt:"dischargeDate", dtm:"dischargeTime",
+  hos:"hospitalName", had:"hospitalAddress", hph:"hospitalPhone",
+  hem:"hospitalEmail", hrn:"hospitalRegNo", hpn:"hospitalPan",
+  rmc:"roomCategory", som:"systemOfMedicine",
+  inc:"injuryCause", mll:"medicoLegal", rtp:"reportedToPolice", fir:"firAttached",
+  hpe:"hadPreExpenses", pre:"preExpenses", hpo:"hadPostExpenses", pos:"postExpenses",
+  hex:"hospitalExpenses", hcu:"healthCheckupCost", amb:"ambulanceCharges",
+  oca:"othersClaimAmount", phdys:"preHospitalizationDays", podys:"postHospitalizationDays",
+  dom:"hadDomiciliary", hcb:"hasCashBenefits", hdc:"hospitalDailyCash",
+  srg:"surgicalCash", cil:"criticalIllnessBenefit", cnv:"convalescence",
+  tdn:"treatingDoctorName", tdq:"treatingDoctorQualification",
+  dxt:"diagnosisText", dxi:"diagnosisIcdCode",
+  prc:"procedureName", pri:"procedureIcdCode", prd:"procedureDate",
+  pex:"isPreExistingCondition",
+  ban:"bankAccountNumber", bnb:"bankNameBranch", ifs:"ifsc",
+  cpy:"chequePayableTo", pyt:"payeeType", pan:"pan",
+  dpl:"declarationPlace", dd:"declarationDate",
+};
+
+function expandCompact(compact: Record<string, unknown>): Partial<ClaimData> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(compact)) {
+    const mapped = QR_KEY_MAP[k];
+    if (mapped) out[mapped] = v;
+  }
+  if (compact.docs) out.documents = compact.docs;
+  if (compact.bills) {
+    out.billRows = (compact.bills as Array<Record<string, string>>).map((b, i) => ({
+      id: String(i), billNo: b.n || "", date: b.d || "", issuedBy: b.b || "", towards: b.t || "", amount: b.a || "",
+    }));
+  }
+  return out as Partial<ClaimData>;
+}
+
 export default function App() {
   const [page, setPage] = useState<Page>("landing");
   const [claimData, setClaimData] = useState<ClaimData | null>(null);
   const [extractedData, setExtractedData] = useState<Partial<ClaimData> | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(() => sessionStorage.getItem("ce_auth"));
-  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [showPrint, setShowPrint] = useState(false);
+  const printRef = useRef(false);
+
+  // Handle QR decode URL: /decode?d=<lz-compressed>
+  useEffect(() => {
+    if (window.location.pathname !== "/decode") return;
+    const params = new URLSearchParams(window.location.search);
+    const d = params.get("d");
+    if (!d) return;
+    try {
+      const json = LZString.decompressFromEncodedURIComponent(d);
+      if (!json) return;
+      const parsed = JSON.parse(json);
+      const raw = parsed.data || parsed;
+      const expanded = expandCompact(raw);
+      const merged: ClaimData = {
+        sameAddress: true, hadPreExpenses: "No", hadPostExpenses: "No",
+        hadDomiciliary: "No", hasCashBenefits: "No", currentOtherCover: "No",
+        hospitalizedLastFourYears: "No", previousOtherCover: "No",
+        healthCheckupCost: "0", ambulanceCharges: "0", othersClaimAmount: "0",
+        preHospitalizationDays: "0", postHospitalizationDays: "0",
+        payeeType: "Primary policyholder",
+        ...expanded,
+      };
+      setClaimData(merged);
+      setPage("review");
+      window.history.replaceState({}, "", "/");
+    } catch { /* bad payload — just show landing */ }
+  }, []);
+
+  // afterprint: reset print overlay after dialog closes
+  useEffect(() => {
+    const handler = () => {
+      setShowPrint(false);
+      printRef.current = false;
+    };
+    window.addEventListener("afterprint", handler);
+    return () => window.removeEventListener("afterprint", handler);
+  }, []);
+
+  const handlePrintPdf = () => {
+    if (!claimData || printRef.current) return;
+    printRef.current = true;
+    setShowPrint(true);
+    setTimeout(() => window.print(), 300);
+  };
 
   const handleLoginSuccess = (token: string) => {
     sessionStorage.setItem("ce_auth", token);
@@ -196,25 +290,6 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  const handleDownloadFilledPdf = async () => {
-    if (!claimData) return;
-    setDownloadingPdf(true);
-    try {
-      const bytes = await generateFilledPdf(claimData);
-      const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "ClaimEase-filled-form.pdf";
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("PDF generation failed:", err);
-      alert("Could not generate PDF. Try printing to PDF instead.");
-    } finally {
-      setDownloadingPdf(false);
-    }
-  };
 
   const handleExtracted = (data: Partial<ClaimData>) => {
     setExtractedData(data);
@@ -246,6 +321,7 @@ export default function App() {
   const showSaveAction = page !== "landing" && page !== "upload" && page !== "login" && page !== "form-peek" && !!claimData;
 
   return (
+    <>
     <div className="app-shell">
       <header className="topbar no-print">
         <div className="brand">
@@ -395,7 +471,7 @@ export default function App() {
           </aside>
 
           <section className="preview-stage">
-            <FormRenderer data={claimData} />
+            <ClaimDataView data={claimData} />
           </section>
         </main>
       )}
@@ -424,15 +500,8 @@ export default function App() {
               </p>
 
               <div className="review-actions">
-                <button
-                  className="primary-btn"
-                  onClick={handleDownloadFilledPdf}
-                  disabled={downloadingPdf}
-                >
-                  {downloadingPdf ? "Generating..." : "Download filled PDF"}
-                </button>
-                <button className="ghost-btn" onClick={() => window.print()}>
-                  Print / Save as PDF
+                <button className="primary-btn" onClick={handlePrintPdf} disabled={showPrint}>
+                  {showPrint ? "Opening print dialog…" : "Print / Save as PDF"}
                 </button>
                 <button className="ghost-btn" onClick={() => setPage("wizard")}>
                   Edit answers
@@ -440,16 +509,24 @@ export default function App() {
               </div>
 
               <p className="review-note">
-                The hospital fills and signs Part B before submission.
+                The PDF is generated in your browser — your data never leaves your device. Part B (hospital section) is pre-filled from your documents for the doctor to verify and sign.
               </p>
             </div>
           </aside>
 
           <section className="preview-stage">
-            <FormRenderer data={claimData} />
+            <ClaimDataView data={claimData} />
           </section>
         </main>
       )}
     </div>
+
+    {/* Print overlay — hidden on screen, shown only during print */}
+    {showPrint && claimData && (
+      <div className="irdai-print-only">
+        <IrdaiFormPrint data={claimData} />
+      </div>
+    )}
+    </>
   );
 }
