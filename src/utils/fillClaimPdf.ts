@@ -5,7 +5,6 @@ import claimFormPdfUrl from "../assets/Claim_Form.pdf?url";
 const W = 595;
 const H = 842;
 
-// Convert % from top-left → PDF points (origin bottom-left)
 function px(xPct: number): number { return (xPct / 100) * W; }
 function py(yPct: number): number { return H - (yPct / 100) * H; }
 
@@ -40,146 +39,152 @@ export async function fillClaimPdf(data: ClaimData): Promise<Uint8Array> {
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
   const pages = pdfDoc.getPages();
-  const pageA = pages[0]; // Part A
-  const pageB = pages[2]; // Part B
+  const pageA = pages[0];
+  const pageB = pages[2];
 
   const age = deriveAge(data.patientDob);
   const INK = rgb(0.04, 0.04, 0.04);
 
-  function t(xPct: number, yPct: number, value: string | undefined, size = 8.5, bold = false) {
+  function t(xPct: number, yPct: number, value: string | undefined, size = 8, bold = false) {
     if (!value) return;
     pageA.drawText(value, { x: px(xPct), y: py(yPct), size, font: bold ? fontBold : font, color: INK });
   }
   function tick(xPct: number, yPct: number) {
-    // Draw an X since checkmark isn't in standard font
-    pageA.drawText("X", { x: px(xPct), y: py(yPct), size: 9, font: fontBold, color: INK });
+    pageA.drawText("X", { x: px(xPct), y: py(yPct), size: 8, font: fontBold, color: INK });
   }
 
-  // ── SECTION A — Primary Insured ──────────────────────────────────────────
-  t(8.4,  8.5,  data.policyNumber,       7.5);
-  t(40.0, 8.5,  data.tpaId,              7.5);
-  t(8.4,  11.0, data.insurerName);
-  t(40.0, 11.0, data.tpaName);
-  t(8.4,  14.5, data.policyholderName,   8);
-  t(8.4,  18.0, data.policyholderAddress1);
-  t(8.4,  20.5, data.policyholderCity);
-  t(40.0, 20.5, data.policyholderState);
-  t(8.4,  23.2, data.policyholderPin,    7.5);
-  t(28.0, 23.2, data.phone);
-  t(55.0, 23.2, data.email,              7.5);
+  // ── SECTION A — Policy / Insured Details ─────────────────────────────────
+  t(11.3, 7.4,  data.policyNumber,         7.5);
+  t(60.5, 7.4,  data.tpaId,                7.5);
+  t(19.4, 9.0,  data.memberId,             7.5);
+  t(9.9,  10.9, data.policyholderName,     8);
+  t(9.9,  12.6, data.policyholderAddress1, 7.5);
+  t(16.1, 16.1, data.policyholderCity,     7.5);
+  t(52.7, 16.1, data.policyholderState,    7.5);
+  t(17.7, 17.7, data.policyholderPin,      7.5);
+  t(34.7, 17.7, data.phone,                7.5);
+  t(58.6, 17.7, data.email,                7);
 
   // ── SECTION B — Insurance History ────────────────────────────────────────
-  if (data.currentOtherCover === "Yes") tick(27.9, 29.5); else tick(33.8, 29.5);
-  t(55.0, 29.5, formatMonthYear(data.firstInsuranceStart), 8);
-  if (data.hospitalizedLastFourYears === "Yes") tick(64.5, 31.8); else tick(70.4, 31.8);
-  t(79.0, 31.8, formatMonthYear(data.lastHospitalizationDate), 7.5);
-  t(8.4,  35.2, data.currentOtherCompanyName);
-  t(47.0, 35.2, data.currentOtherPolicyNo);
-  t(8.4,  37.5, data.currentOtherSumInsured);
-  if (data.previousOtherCover === "Yes") tick(84.8, 37.5); else tick(90.5, 37.5);
-  t(8.4,  40.5, data.lastHospitalizationDiagnosis, 8);
-  t(8.4,  42.5, data.previousOtherCompanyName);
+  if (data.currentOtherCover === "Yes") tick(26.0, 19.8); else tick(27.9, 19.8);
+  t(62.2, 19.8, formatMonthYear(data.firstInsuranceStart), 7.5);
+  if (data.hospitalizedLastFourYears === "Yes") tick(62.9, 21.5); else tick(64.9, 21.5);
+  t(8.4,  23.5, data.currentOtherCompanyName, 7.5);
+  t(47.0, 23.5, data.currentOtherPolicyNo,    7.5);
+  t(8.4,  25.3, data.currentOtherSumInsured,  7.5);
+  if (data.previousOtherCover === "Yes") tick(84.8, 25.3); else tick(90.5, 25.3);
+  t(8.4,  27.3, data.lastHospitalizationDiagnosis, 7.5);
+  t(8.4,  29.2, data.previousOtherCompanyName, 7.5);
 
-  // ── SECTION C — Insured Person Hospitalized ───────────────────────────────
-  t(8.4,  47.5, data.patientName,        8);
-  if (data.gender === "Male")   tick(26.1, 50.2);
-  if (data.gender === "Female") tick(33.0, 50.2);
-  t(45.5, 50.2, age.years);
-  t(52.5, 50.2, age.months);
-  t(63.5, 50.2, formatDate(data.patientDob));
+  // ── SECTION C — Insured Person ───────────────────────────────────────────
+  t(10.2, 26.5, data.patientName, 8);
+  if (data.gender === "Male")   tick(14.1, 28.2);
+  if (data.gender === "Female") tick(17.9, 28.2);
+  t(36.1, 28.2, age.years,                7.5);
+  t(43.0, 28.2, age.months,               7.5);
+  t(54.7, 28.2, formatDate(data.patientDob), 7.5);
 
-  const relX: Record<string, number> = { Myself: 27.0, Spouse: 33.2, Child: 39.5, Father: 45.5, Mother: 52.0 };
-  if (data.relationship && relX[data.relationship]) tick(relX[data.relationship], 52.5);
-  else if (data.relationship) tick(58.2, 52.5);
+  const relX: Record<string, number> = { Myself: 24.6, Spouse: 30.2, Child: 36.7, Father: 41.1, Mother: 48.4 };
+  if (data.relationship && relX[data.relationship]) tick(relX[data.relationship], 29.9);
+  else if (data.relationship) tick(53.2, 29.9);
 
-  const occX: Record<string, number> = { Service: 24.0, "Self Employed": 31.6, Homemaker: 39.9, Student: 49.0, Retired: 56.0 };
-  if (data.occupation && occX[data.occupation]) tick(occX[data.occupation], 54.5);
-  else if (data.occupation) tick(62.2, 54.5);
+  const occX: Record<string, number> = { Service: 16.5, "Self Employed": 23.8, Homemaker: 30.6, Student: 36.7, Retired: 44.8 };
+  if (data.occupation && occX[data.occupation]) tick(occX[data.occupation], 31.6);
+  else if (data.occupation) tick(50.0, 31.6);
 
   if (data.sameAddress !== true) {
     const addrParts = [data.patientAddress1, data.patientCity, data.patientState].filter(Boolean).join(", ");
-    t(8.4, 56.5, addrParts, 7.5);
-    t(8.4, 60.0, data.patientPin, 7.5);
+    t(8.4, 33.5, addrParts, 7);
+    t(8.4, 36.8, data.patientPin, 7.5);
   }
 
   // ── SECTION D — Hospitalization ───────────────────────────────────────────
-  t(22.0, 62.5, data.hospitalName);
+  t(22.4, 42.3, data.hospitalName, 8);
 
-  if (data.roomCategory === "Day care")          tick(25.9, 65.0);
-  else if (data.roomCategory === "Single occupancy") tick(34.8, 65.0);
-  else if (data.roomCategory === "Twin sharing")     tick(46.1, 65.0);
-  else if (data.roomCategory)                        tick(60.1, 65.0);
+  if (data.roomCategory === "Day care")              tick(23.0, 44.0);
+  else if (data.roomCategory === "Single occupancy") tick(33.9, 44.0);
+  else if (data.roomCategory === "Twin sharing")     tick(43.5, 44.0);
+  else if (data.roomCategory)                        tick(54.0, 44.0);
 
-  if (data.hospitalizationReason === "Injury")   tick(26.4, 67.5);
-  if (data.hospitalizationReason === "Illness")  tick(33.0, 67.5);
-  if (data.hospitalizationReason === "Maternity") tick(39.6, 67.5);
-  t(64.0, 67.5, formatDate(data.diseaseOrInjuryDate));
+  if (data.hospitalizationReason === "Injury")    tick(22.6, 45.8);
+  if (data.hospitalizationReason === "Illness")   tick(27.8, 45.8);
+  if (data.hospitalizationReason === "Maternity") tick(32.9, 45.8);
+  t(69.7, 45.8, formatDate(data.diseaseOrInjuryDate), 7.5);
 
-  t(17.0, 70.0, formatDate(data.admissionDate));
-  t(33.0, 70.0, formatTime(data.admissionTime));
-  t(50.0, 70.0, formatDate(data.dischargeDate));
-  t(66.0, 70.0, formatTime(data.dischargeTime));
+  t(9.9,  47.5, formatDate(data.admissionDate),   7.5);
+  t(29.6, 47.5, formatTime(data.admissionTime),   7.5);
+  t(52.8, 47.5, formatDate(data.dischargeDate),   7.5);
+  t(72.2, 47.5, formatTime(data.dischargeTime),   7.5);
 
-  if (data.injuryCause === "Self inflicted")              tick(25.8, 72.5);
-  if (data.injuryCause === "Road traffic accident")       tick(36.4, 72.5);
-  if (data.injuryCause === "Substance / alcohol related") tick(54.0, 72.5);
-  if (data.medicoLegal === "Yes") tick(74.5, 72.5);
-  if (data.medicoLegal === "No")  tick(80.5, 72.5);
+  if (data.injuryCause === "Self inflicted")              tick(25.8, 49.2);
+  if (data.injuryCause === "Road traffic accident")       tick(36.4, 49.2);
+  if (data.injuryCause === "Substance / alcohol related") tick(54.0, 49.2);
+  t(59.7, 49.2, data.systemOfMedicine, 7.5);
+  if (data.medicoLegal === "Yes") tick(69.8, 49.2);
+  if (data.medicoLegal === "No")  tick(71.9, 49.2);
 
-  if (data.reportedToPolice === "Yes") tick(20.6, 74.5);
-  if (data.reportedToPolice === "No")  tick(26.5, 74.5);
-  if (data.firAttached === "Yes") tick(43.4, 74.5);
-  if (data.firAttached === "No")  tick(49.3, 74.5);
-  t(75.0, 74.5, data.systemOfMedicine, 7.5);
+  if (data.reportedToPolice === "Yes") tick(10.3, 50.9);
+  if (data.reportedToPolice === "No")  tick(12.3, 50.9);
+  if (data.firAttached === "Yes") tick(43.4, 50.9);
+  if (data.firAttached === "No")  tick(49.3, 50.9);
 
   // ── SECTION E — Claim Amounts ─────────────────────────────────────────────
-  t(14.8, 77.5, data.preExpenses);
-  t(44.9, 77.5, data.hospitalExpenses);
-  t(14.8, 79.2, data.postExpenses);
-  t(44.9, 79.2, data.healthCheckupCost);
-  t(14.8, 81.0, data.ambulanceCharges);
-  t(44.9, 81.0, data.othersClaimAmount);
-  t(20.0, 82.7, data.preHospitalizationDays);
-  t(54.0, 82.7, data.postHospitalizationDays);
-  if (data.hadDomiciliary === "Yes") tick(26.1, 84.2); else tick(32.0, 84.2);
-  t(14.8, 85.5, data.hospitalDailyCash);
-  t(44.9, 85.5, data.surgicalCash);
-  t(14.8, 87.0, data.criticalIllnessBenefit);
-  t(44.9, 87.0, data.convalescence);
+  t(27.8, 54.9, data.preExpenses,             7.5);
+  t(55.7, 54.9, data.hospitalExpenses,        7.5);
+  t(27.1, 56.6, data.postExpenses,            7.5);
+  t(55.7, 56.6, data.healthCheckupCost,       7.5);
+  t(27.2, 58.3, data.ambulanceCharges,        7.5);
+  t(55.7, 58.3, data.othersClaimAmount,       7.5);
+  t(34.7, 60.3, data.preHospitalizationDays,  7.5);
+  t(56.6, 60.3, data.postHospitalizationDays, 7.5);
+  if (data.hadDomiciliary === "Yes") tick(25.8, 62.0); else tick(27.8, 62.0);
+  t(27.2, 64.6, data.hospitalDailyCash,       7.5);
+  t(55.7, 64.6, data.surgicalCash,            7.5);
+  t(27.2, 66.3, data.criticalIllnessBenefit,  7.5);
+  t(54.4, 66.3, data.convalescence,           7.5);
 
-  // Document checklist ticks
+  // Document checklist
   const hasDoc = (label: string) => (data.documents || []).includes(label);
-  const docY = [77.5, 79.2, 81.0, 82.7, 84.2, 85.5, 87.0];
-  const docLabels = [
-    "Claim form duly signed", "Copy of claim intimation", "Hospital main bill",
-    "Hospital break-up bill", "Hospital bill payment receipt", "Hospital discharge summary", "Pharmacy bill",
+  const docMap: [string, number][] = [
+    ["Claim form duly signed",        54.9],
+    ["Copy of claim intimation",      56.3],
+    ["Hospital main bill",            57.7],
+    ["Hospital break-up bill",        59.1],
+    ["Hospital bill payment receipt", 60.1],
+    ["Hospital discharge summary",    61.3],
+    ["Pharmacy bill",                 62.6],
+    ["OT notes",                      63.7],
+    ["ECG / X-Ray",                   64.8],
+    ["Doctor request letter",         66.0],
+    ["Investigation reports",         67.1],
+    ["Doctor prescriptions",          68.3],
+    ["Others",                        69.4],
   ];
-  docLabels.forEach((lbl, i) => { if (hasDoc(lbl)) tick(74.0, docY[i]); });
+  docMap.forEach(([lbl, yd]) => { if (hasDoc(lbl)) tick(69.7, yd); });
 
-  // Bills table rows (below expense amounts)
-  const rows = (data.billRows || []).slice(0, 8);
-  rows.forEach((row: BillRow, idx: number) => {
-    const ry = 88.5 + idx * 0.8;
-    t(5.7,  ry, String(idx + 1), 7);
-    t(11.5, ry, row.billNo,            7);
-    t(26.4, ry, formatDate(row.date),  7);
-    t(39.0, ry, row.issuedBy,          7);
-    t(56.3, ry, row.towards,           7);
-    t(82.3, ry, row.amount,            7);
+  // Bills table
+  const billYs = [70.8, 72.3, 73.8, 75.4, 76.8, 78.3, 79.7, 81.2, 82.7, 84.1];
+  (data.billRows || []).slice(0, 10).forEach((row: BillRow, idx: number) => {
+    const ry = billYs[idx];
+    t(7.1,  ry, String(idx + 1),       6.5);
+    t(11.1, ry, row.billNo,            6.5);
+    t(19.4, ry, formatDate(row.date),  6.5);
+    t(33.5, ry, row.issuedBy,          6.5);
+    t(50.8, ry, row.towards,           6.5);
+    t(79.8, ry, row.amount,            6.5);
   });
 
-  // ── Bank Account ──────────────────────────────────────────────────────────
-  t(8.1,  89.5, data.pan,               7.5);
-  t(34.1, 89.5, data.bankAccountNumber, 7.5);
-  t(8.1,  91.5, data.bankNameBranch);
-  t(8.1,  93.2, data.chequePayableTo);
-  t(58.9, 93.2, data.ifsc,              7.5);
+  // ── SECTION F — Bank / Payment ────────────────────────────────────────────
+  t(16.1, 85.1, data.pan,               7.5);
+  t(56.5, 85.1, data.bankAccountNumber, 7.5);
+  t(20.2, 86.8, data.bankNameBranch,    7.5);
+  t(30.6, 88.5, data.chequePayableTo,   7.5);
+  t(60.5, 88.5, data.ifsc,              7.5);
 
-  // ── Declaration ────────────────────────────────────────────────────────────
-  t(8.1,  95.0, data.declarationPlace);
-  t(40.0, 95.0, formatDate(data.declarationDate));
+  // ── SECTION G — Declaration ───────────────────────────────────────────────
+  t(8.1,  94.0, data.declarationPlace, 7.5);
+  t(40.0, 94.0, formatDate(data.declarationDate), 7.5);
 
-  // ── Signature ──────────────────────────────────────────────────────────────
   if (data.signatureDataUrl) {
     try {
       const raw = data.signatureDataUrl;
@@ -191,43 +196,53 @@ export async function fillClaimPdf(data: ClaimData): Promise<Uint8Array> {
       const maxW = 120; const maxH = 28;
       const scale = Math.min(maxW / iw, maxH / ih);
       pageA.drawImage(embed, {
-        x: px(6), y: py(97.2) - maxH / 2,
+        x: px(6), y: py(97.5) - maxH / 2,
         width: iw * scale, height: ih * scale,
       });
     } catch { /* skip bad image */ }
   } else if (data.signatureText) {
-    // Helvetica can render ASCII letters — cursive look not possible in standard PDF
-    t(6, 97.2, data.signatureText, 12, false);
+    t(6, 97.5, data.signatureText, 11);
   }
 
   // ── PART B — Hospital Section ─────────────────────────────────────────────
-  function tb(xPct: number, yPct: number, value: string | undefined, size = 8.5) {
+  function tb(xPct: number, yPct: number, value: string | undefined, size = 8) {
     if (!value) return;
     pageB.drawText(value, { x: px(xPct), y: py(yPct), size, font, color: INK });
   }
-
-  tb(30,  8.5,  data.hospitalName);
-  tb(14,  12.0, data.hospitalAddress, 7.5);
-  tb(30,  14.8, data.hospitalPhone);
-  tb(14,  17.8, data.hospitalEmail,   7.5);
-  tb(67,  11.5, data.hospitalRegNo,   7.5);
-  tb(67,  17.8, data.hospitalPan,     7.5);
-  tb(30,  22.8, data.treatingDoctorName);
-  tb(70,  22.8, data.treatingDoctorQualification, 7.5);
-  tb(25,  29.5, data.diagnosisText,   7.5);
-  tb(80,  29.5, data.diagnosisIcdCode, 7.5);
-  tb(25,  33.5, data.procedureName,   7.5);
-  tb(80,  33.5, data.procedureIcdCode, 7.5);
-  tb(20,  38.0, formatDate(data.admissionDate));
-  tb(33,  38.0, formatTime(data.admissionTime));
-  tb(55,  38.0, formatDate(data.dischargeDate));
-  tb(68,  38.0, formatTime(data.dischargeTime));
-  tb(20,  42.5, formatDate(data.procedureDate));
-  if (data.isPreExistingCondition === "Yes") {
-    pageB.drawText("X", { x: px(36), y: py(47.0), size: 9, font: fontBold, color: INK });
-  } else if (data.isPreExistingCondition === "No") {
-    pageB.drawText("X", { x: px(41), y: py(47.0), size: 9, font: fontBold, color: INK });
+  function tickB(xPct: number, yPct: number) {
+    pageB.drawText("X", { x: px(xPct), y: py(yPct), size: 8, font: fontBold, color: INK });
   }
+
+  tb(21.6, 9.0,  data.hospitalName,                8);
+  tb(8.1,  10.8, data.hospitalAddress,              7);
+  tb(8.1,  12.6, data.treatingDoctorName,           8);
+  tb(21.0, 14.4, data.treatingDoctorQualification,  7.5);
+  tb(49.2, 14.4, data.hospitalRegNo,                7.5);
+  tb(70.6, 14.4, data.hospitalPhone,                7.5);
+  tb(8.1,  18.9, data.patientName,                  8);
+  tb(33.9, 20.6, age.years,                         7.5);
+  tb(53.5, 20.6, formatDate(data.patientDob),       7.5);
+  tb(10.3, 22.3, formatDate(data.admissionDate),    7.5);
+  tb(29.4, 22.3, formatTime(data.admissionTime),    7.5);
+  tb(52.4, 22.3, formatDate(data.dischargeDate),    7.5);
+  tb(72.6, 22.3, formatTime(data.dischargeTime),    7.5);
+
+  if (data.hospitalizationReason === "Maternity") tickB(31.0, 24.0);
+  else if (data.hospitalizationReason === "Illness")  tickB(15.3, 24.0);
+  else if (data.hospitalizationReason === "Injury")   tickB(15.3, 24.0);
+
+  tb(22.6, 30.5, data.diagnosisIcdCode,  7.5);
+  tb(32.9, 30.5, data.diagnosisText,     7.5);
+  tb(66.1, 30.5, data.procedureIcdCode,  7.5);
+  tb(74.2, 30.5, data.procedureName,     7.5);
+
+  tb(20.0, 42.5, formatDate(data.procedureDate), 7.5);
+
+  if (data.isPreExistingCondition === "Yes") tickB(25.0, 44.4);
+  else if (data.isPreExistingCondition === "No")  tickB(27.0, 44.4);
+
+  tb(15.5, 85.3, formatDate(data.declarationDate), 7.5);
+  tb(15.5, 87.2, data.declarationPlace,             7.5);
 
   return pdfDoc.save();
 }

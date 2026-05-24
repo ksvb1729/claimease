@@ -4,6 +4,7 @@ import LZString from "lz-string";
 import Wizard from "./components/Wizard";
 import ClaimDataView from "./components/ClaimDataView";
 import IrdaiFormPrint from "./components/IrdaiFormPrint";
+import { fillClaimPdf, downloadPdf } from "./utils/fillClaimPdf";
 import UploadScreen from "./components/UploadScreen";
 import ConfirmFields from "./components/ConfirmFields";
 import LoginScreen from "./components/LoginScreen";
@@ -218,6 +219,7 @@ export default function App() {
   const [extractedData, setExtractedData] = useState<Partial<ClaimData> | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(() => sessionStorage.getItem("ce_auth"));
   const [showPrint, setShowPrint] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const printRef = useRef(false);
 
   // Handle QR decode URL: /decode?d=<lz-compressed>
@@ -262,6 +264,20 @@ export default function App() {
     printRef.current = true;
     setShowPrint(true);
     setTimeout(() => window.print(), 300);
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!claimData || pdfLoading) return;
+    setPdfLoading(true);
+    try {
+      const bytes = await fillClaimPdf(claimData);
+      downloadPdf(bytes, "IRDAI_Claim_Form_Filled.pdf");
+    } catch (e) {
+      alert("PDF generation failed. Please try again.");
+      console.error(e);
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   const handleLoginSuccess = (token: string) => {
@@ -522,7 +538,10 @@ export default function App() {
               </p>
 
               <div className="review-actions">
-                <button className="primary-btn" onClick={handlePrintPdf} disabled={showPrint}>
+                <button className="primary-btn" onClick={handleDownloadPdf} disabled={pdfLoading}>
+                  {pdfLoading ? "Generating PDF…" : "Download filled PDF"}
+                </button>
+                <button className="ghost-btn" onClick={handlePrintPdf} disabled={showPrint}>
                   {showPrint ? "Opening print dialog…" : "Print / Save as PDF"}
                 </button>
                 <button className="ghost-btn" onClick={() => setPage("wizard")}>
